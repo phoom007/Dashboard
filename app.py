@@ -8,11 +8,24 @@ import plotly.graph_objects as go
 import io
 import json
 import urllib.request
+import re
 
 # ==============================================================================
 # ตั้งค่าหน้าเว็บให้เป็นแบบ Wide Mode เพื่อใช้พื้นที่เต็มความกว้าง
 # ==============================================================================
 st.set_page_config(layout="wide")
+
+# ==============================================================================
+# Utilities: ทำความสะอาดชื่อคอลัมน์แบบยืดหยุ่น
+# ==============================================================================
+def _norm(s: str) -> str:
+    if s is None:
+        return s
+    s = str(s)
+    s = s.replace('"', ' ')
+    s = s.replace('(บาท)', ' ')
+    s = re.sub(r'\s+', ' ', s)  # บีบช่องว่าง/ขึ้นบรรทัดเป็นช่องว่างเดียว
+    return s.strip()
 
 # ==============================================================================
 # ส่วนที่ 2: การเตรียมข้อมูล (ใช้ฟังก์ชัน Caching เพื่อให้โหลดครั้งเดียว)
@@ -158,10 +171,10 @@ def load_data():
 
     def clean_and_load_data(data_str):
         return pd.read_csv(io.StringIO(data_str), sep='\t', quotechar='"', engine='python', on_bad_lines='skip')
-    
+
     # --- ทำความสะอาด DF1 ---
     df1_raw = clean_and_load_data(data1_str)
-    df1_raw.columns = [col.replace('\n', ' ').replace('(บาท)', '').replace('"', '').strip() for col in df1_raw.columns]
+    df1_raw.columns = [_norm(col) for col in df1_raw.columns]
     month_cols = [col for col in df1_raw.columns if '2566' in col or '2567' in col]
     columns_to_keep_df1 = ['จังหวัด'] + month_cols
     df1 = df1_raw[columns_to_keep_df1].copy()
@@ -171,41 +184,75 @@ def load_data():
 
     # --- ทำความสะอาด DF2 ---
     df2_raw = clean_and_load_data(data2_str)
-    columns_to_keep_df2 = [
-        'เดือน', 'ในประเทศ(ออฟไลน์)', 'ในประเทศ(ออนไลน์)', 
-        'ต่างประเทศ(ออฟไลน์)', 'ต่างประเทศ(ออนไลน์)'
-    ]
+    df2_raw.columns = [_norm(c) for c in df2_raw.columns]
+    # ตัดคอลัมน์ที่ไม่ใช้ (เช่น "ที่")
+    df2_raw = df2_raw[[c for c in df2_raw.columns if c in ['เดือน', 'ในประเทศ(ออฟไลน์)', 'ในประเทศ(ออนไลน์)', 'ต่างประเทศ(ออฟไลน์)', 'ต่างประเทศ(ออนไลน์)', 'รวม']]]
+    columns_to_keep_df2 = ['เดือน', 'ในประเทศ(ออฟไลน์)', 'ในประเทศ(ออนไลน์)', 'ต่างประเทศ(ออฟไลน์)', 'ต่างประเทศ(ออนไลน์)']
     df2 = df2_raw[columns_to_keep_df2].copy()
-    df2['เดือน'] = df2['เดือน'].str.strip()
+    df2['เดือน'] = df2['เดือน'].astype(str).str.strip()
     df2.set_index('เดือน', inplace=True)
     for col in df2.columns:
         df2[col] = pd.to_numeric(df2[col].astype(str).str.replace(',', ''), errors='coerce')
 
-    # --- ทำความสะอาด DF3 (*** ส่วนที่แก้ไข ***) ---
+    # --- ทำความสะอาด DF3 (แก้ KeyError ด้วยการแม็ปชื่อคอลัมน์แบบยืดหยุ่น) ---
     df3_raw = clean_and_load_data(data3_str)
-    df3_raw.columns = [col.replace('\n', ' ').replace('"', '').replace('(บาท)','').strip().replace('  ', ' ') for col in df3_raw.columns]
-    columns_to_keep_df3 = [
-        'เดือน', 'อาหาร', 'เครื่องดื่ม', 'ผ้าและเครื่องแต่งกาย', 
-        'เครื่องใช้และเครื่องประดับตกแต่ง', 'สมุนไพรที่ไม่ใช่อาหารและยา'
-    ]
-    df3 = df3_raw[columns_to_keep_df3].copy()
-    df3['เดือน'] = df3['เดือน'].str.strip()
+    # ทำ normalization พื้นฐาน
+    df3_raw.columns = [_norm(c) for c in df3_raw.columns]
+
+    # สร้าง mapping จากคีย์เวิร์ด -> ชื่อเป้าหมาย
+    colmap = {}
+    for c in df3_raw.columns:
+        cs = _norm(c)
+        if cs in ('ที่',):
+            # ทิ้งคอลัมน์ลำดับ
+            continue
+        if cs.startswith('เดือน'):
+            colmap[c] = 'เดือน'
+        elif 'เครื่องดื่ม' in cs:
+            colmap[c] = 'เครื่องดื่ม'
+        elif 'ผ้า' in cs or 'เครื่องแต่งกาย' in cs:
+            colmap[c] = 'ผ้าและเครื่องแต่งกาย'
+        elif 'ไม่ใช่อาหารและยา' in cs:
+            colmap[c] = 'สมุนไพรที่ไม่ใช่อาหารและยา'
+        elif 'เครื่องประดับตกแต่ง' in cs or ('เครื่องใช้' in cs and 'เครื่องประดับ' in cs):
+            colmap[c] = 'เครื่องใช้และเครื่องประดับตกแต่ง'
+        elif cs.startswith('อาหาร'):
+            colmap[c] = 'อาหาร'
+        elif 'รวมทั้งสิ้น' in cs:
+            colmap[c] = 'รวมทั้งสิ้น'
+        else:
+            # ไม่รู้จักก็ข้าม
+            pass
+
+    df3_tmp = df3_raw.rename(columns=colmap)
+    columns_to_keep_df3 = ['เดือน', 'อาหาร', 'เครื่องดื่ม', 'ผ้าและเครื่องแต่งกาย', 'เครื่องใช้และเครื่องประดับตกแต่ง', 'สมุนไพรที่ไม่ใช่อาหารและยา']
+    # เผื่อคอลัมน์ไม่ครบ ให้เช็คก่อนเลือก
+    missing = [c for c in columns_to_keep_df3 if c not in df3_tmp.columns]
+    if missing:
+        raise ValueError(f"คอลัมน์ที่จำเป็นใน df3 ขาดหาย: {missing}\nคอลัมน์ที่มีอยู่จริง: {list(df3_tmp.columns)}")
+
+    df3 = df3_tmp[columns_to_keep_df3].copy()
+    df3['เดือน'] = df3['เดือน'].astype(str).str.strip()
     df3.set_index('เดือน', inplace=True)
     for col in df3.columns:
-        if col != 'เดือน':
-            df3[col] = pd.to_numeric(df3[col].astype(str).str.replace(',', ''), errors='coerce')
-            
+        df3[col] = pd.to_numeric(df3[col].astype(str).str.replace(',', ''), errors='coerce')
+
+    # เตรียม melt และค่าเฉลี่ยประเทศ
     df1_melted = df1.reset_index().melt(id_vars='จังหวัด', var_name='เดือน', value_name='ยอดขาย')
     national_average = df1.mean()
-    
+
     return df1, df2, df3, df1_melted, national_average, month_cols
 
 @st.cache_data
 def load_geojson():
     geojson_url = "https://raw.githubusercontent.com/apisit/thailand.json/master/thailand.json"
-    with urllib.request.urlopen(geojson_url) as url:
-        thailand_geojson = json.load(url)
-    return thailand_geojson
+    try:
+        with urllib.request.urlopen(geojson_url) as url:
+            thailand_geojson = json.load(url)
+        return thailand_geojson
+    except Exception as e:
+        st.error(f"ไม่สามารถโหลดแผนที่ประเทศไทยได้: {e}")
+        return None
 
 # โหลดข้อมูลทั้งหมด
 df1, df2, df3, df1_melted, national_average, month_cols = load_data()
@@ -231,7 +278,7 @@ province_name_map = {
     'นครศรีธรรมราช': 'Nakhon Si Thammarat', 'กระบี่': 'Krabi', 'พังงา': 'Phangnga', 'ภูเก็ต': 'Phuket',
     'สุราษฎร์ธานี': 'Surat Thani', 'ระนอง': 'Ranong', 'ชุมพร': 'Chumphon', 'สงขลา': 'Songkhla', 'สตูล': 'Satun',
     'ตรัง': 'Trang', 'พัทลุง': 'Phatthalung', 'ปัตตานี': 'Pattani', 'ยะลา': 'Yala', 'นราธิวาส': 'Narathiwat',
-    'บึงกาฬ': 'buogkan'
+    'บึงกาฬ': 'Bueng Kan'
 }
 df1_melted['province_eng'] = df1_melted['จังหวัด'].map(province_name_map)
 
@@ -253,18 +300,22 @@ selected_province = st.sidebar.selectbox(
 
 # --- แสดงผลกราฟ ---
 st.subheader(f'ยอดขาย OTOP รายจังหวัด ประจำเดือน {selected_month}')
-fig_map = px.choropleth(
-    df1_melted[df1_melted['เดือน'] == selected_month],
-    geojson=thailand_geojson,
-    locations='province_eng',
-    featureidkey="properties.name",
-    color='ยอดขาย',
-    color_continuous_scale="Viridis",
-    scope="asia"
-)
-fig_map.update_geos(fitbounds="locations", visible=False)
-fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-st.plotly_chart(fig_map, use_container_width=True)
+_map_df = df1_melted[df1_melted['เดือน'] == selected_month].dropna(subset=['province_eng'])
+
+if thailand_geojson is not None and not _map_df.empty:
+    fig_map = px.choropleth(
+        _map_df,
+        geojson=thailand_geojson,
+        locations='province_eng',
+        featureidkey="properties.name",
+        color='ยอดขาย',
+        color_continuous_scale="Viridis"
+    )
+    fig_map.update_geos(fitbounds="locations", visible=False)
+    fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+    st.plotly_chart(fig_map, use_container_width=True)
+else:
+    st.info("ไม่สามารถแสดงแผนที่ได้ (ไม่มีข้อมูลหรือโหลดแผนที่ไม่สำเร็จ)")
 
 col1, col2 = st.columns(2)
 
@@ -272,7 +323,7 @@ with col1:
     st.subheader(f'20 อันดับจังหวัดยอดขายสูงสุด เดือน {selected_month}')
     monthly_data = df1[[selected_month]].sort_values(by=selected_month, ascending=False).reset_index()
     colors = ['#FFA500' if prov == selected_province else '#1f77b4' for prov in monthly_data['จังหวัด']]
-    
+
     fig_bar = px.bar(
         monthly_data.head(20).sort_values(by=selected_month, ascending=True),
         x=selected_month,
@@ -281,27 +332,32 @@ with col1:
         labels={'จังหวัด': '', selected_month: 'ยอดขาย (บาท)'},
         height=500
     )
-    fig_bar.update_traces(marker_color=colors)
+    fig_bar.update_traces(marker_color=colors[:len(fig_bar.data[0]['y'])] if fig_bar.data else None)
     st.plotly_chart(fig_bar, use_container_width=True)
 
     st.subheader(f'สัดส่วนยอดขายตามช่องทาง เดือน {selected_month}')
-    channel_data_series = df2.loc[[m.strip() for m in df2.index if selected_month.split(' ')[0] in m]].iloc[0]
-    channel_df = channel_data_series.reset_index()
-    channel_df.columns = ['ช่องทาง', 'ยอดขาย']
-    channel_df['เดือน'] = channel_data_series.name
-    
-    fig_channel = px.bar(
-        channel_df, x='เดือน', y='ยอดขาย', color='ช่องทาง',
-        labels={'เดือน': '', 'ยอดขาย': 'ยอดขาย (บาท)'}
-    )
-    st.plotly_chart(fig_channel, use_container_width=True)
+    # หาแถวของเดือนด้วย startswith เพื่อกันกรณีมีปีต่อท้าย
+    month_key = selected_month.split(' ')[0]
+    idx_match = next((idx for idx in df2.index if str(idx).startswith(month_key)), None)
+    if idx_match:
+        channel_data_series = df2.loc[idx_match]
+        channel_df = channel_data_series.reset_index()
+        channel_df.columns = ['ช่องทาง', 'ยอดขาย']
+        channel_df['เดือน'] = idx_match
+        fig_channel = px.bar(
+            channel_df, x='เดือน', y='ยอดขาย', color='ช่องทาง',
+            labels={'เดือน': '', 'ยอดขาย': 'ยอดขาย (บาท)'}
+        )
+        st.plotly_chart(fig_channel, use_container_width=True)
+    else:
+        st.info("ไม่พบข้อมูลช่องทางสำหรับเดือนที่เลือก")
 
 with col2:
     st.subheader(f'แนวโน้มยอดขายของ {selected_province}')
     fig_line = go.Figure()
     if selected_province != 'ภาพรวม':
         fig_line.add_trace(go.Scatter(x=month_cols, y=df1.loc[selected_province], mode='lines+markers', name=selected_province))
-    
+
     fig_line.add_trace(go.Scatter(x=month_cols, y=national_average, mode='lines', name='ค่าเฉลี่ยทั้งประเทศ', line=dict(dash='dash')))
     fig_line.update_layout(
         xaxis_title='เดือน', yaxis_title='ยอดขาย (บาท)', xaxis_tickangle=-45, height=500,
@@ -310,13 +366,18 @@ with col2:
     st.plotly_chart(fig_line, use_container_width=True)
 
     st.subheader(f'สัดส่วนยอดขายตามประเภทสินค้า เดือน {selected_month}')
-    product_data_series = df3.loc[[m.strip() for m in df3.index if selected_month.split(' ')[0] in m]].iloc[0]
-    product_df = product_data_series.reset_index()
-    product_df.columns = ['ประเภทสินค้า', 'ยอดขาย']
-    product_df['เดือน'] = product_data_series.name
-    
-    fig_product = px.bar(
-        product_df, x='เดือน', y='ยอดขาย', color='ประเภทสินค้า',
-        labels={'เดือน': '', 'ยอดขาย': 'ยอดขาย (บาท)'}
-    )
-    st.plotly_chart(fig_product, use_container_width=True)
+    month_key = selected_month.split(' ')[0]
+    idx_match = next((idx for idx in df3.index if str(idx).startswith(month_key)), None)
+    if idx_match:
+        product_data_series = df3.loc[idx_match]
+        product_df = product_data_series.reset_index()
+        product_df.columns = ['ประเภทสินค้า', 'ยอดขาย']
+        product_df['เดือน'] = idx_match
+
+        fig_product = px.bar(
+            product_df, x='เดือน', y='ยอดขาย', color='ประเภทสินค้า',
+            labels={'เดือน': '', 'ยอดขาย': 'ยอดขาย (บาท)'}
+        )
+        st.plotly_chart(fig_product, use_container_width=True)
+    else:
+        st.info("ไม่พบข้อมูลประเภทสินค้าสำหรับเดือนที่เลือก")
