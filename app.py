@@ -159,42 +159,39 @@ def load_data():
     def clean_and_load_data(data_str):
         return pd.read_csv(io.StringIO(data_str), sep='\t', quotechar='"', engine='python', on_bad_lines='skip')
     
-    # --- ทำความสะอาด DF1 ---
+    # --- *** ส่วนที่แก้ไข *** ---
+    # โหลด df1
     df1_raw = clean_and_load_data(data1_str)
+    # ทำความสะอาดชื่อคอลัมน์ทั้งหมดก่อน
     df1_raw.columns = [col.replace('\n', ' ').replace('(บาท)', '').replace('"', '').strip() for col in df1_raw.columns]
+    # กำหนดรายชื่อคอลัมน์เดือนที่เราต้องการเก็บไว้
     month_cols = [col for col in df1_raw.columns if '2566' in col or '2567' in col]
-    columns_to_keep_df1 = ['จังหวัด'] + month_cols
-    df1 = df1_raw[columns_to_keep_df1].copy()
+    # สร้าง list ของคอลัมน์ทั้งหมดที่ต้องการเก็บ (จังหวัด + เดือน)
+    columns_to_keep = ['จังหวัด'] + month_cols
+    # สร้าง DataFrame ใหม่โดยเลือกเฉพาะคอลัมน์ที่ต้องการ
+    df1 = df1_raw[columns_to_keep].copy()
+    # ตั้งค่า index
     df1.set_index('จังหวัด', inplace=True)
-    for col in month_cols:
-        df1[col] = pd.to_numeric(df1[col].astype(str).str.replace(',', ''), errors='coerce')
+    # --- *** จบส่วนที่แก้ไข *** ---
 
-    # --- ทำความสะอาด DF2 ---
-    df2_raw = clean_and_load_data(data2_str)
-    columns_to_keep_df2 = [
-        'เดือน', 'ในประเทศ(ออฟไลน์)', 'ในประเทศ(ออนไลน์)', 
-        'ต่างประเทศ(ออฟไลน์)', 'ต่างประเทศ(ออนไลน์)'
-    ]
-    df2 = df2_raw[columns_to_keep_df2].copy()
+    # โหลด df2 (เหมือนเดิม)
+    df2 = clean_and_load_data(data2_str)
+    df2 = df2.drop(columns=['ที่', 'รวม'])
     df2['เดือน'] = df2['เดือน'].str.strip()
     df2.set_index('เดือน', inplace=True)
     for col in df2.columns:
-        df2[col] = pd.to_numeric(df2[col].astype(str).str.replace(',', ''), errors='coerce')
+        df2[col] = df2[col].astype(str).str.replace(',', '').astype(float)
 
-    # --- ทำความสะอาด DF3 ---
-    df3_raw = clean_and_load_data(data3_str)
-    df3_raw.columns = [col.replace('\n', ' ').replace('(บาท)', '').replace('"', '').strip() for col in df3_raw.columns]
-    columns_to_keep_df3 = [
-        'เดือน', 'อาหาร', 'เครื่องดื่ม', 'ผ้าและเครื่องแต่งกาย', 
-        'เครื่องใช้และ เครื่องประดับตกแต่ง', 'สมุนไพรที่ ไม่ใช่อาหารและยา'
-    ]
-    df3 = df3_raw[columns_to_keep_df3].copy()
+    # โหลด df3 (เหมือนเดิม)
+    df3 = clean_and_load_data(data3_str)
+    df3.columns = [col.replace('\n', ' ').replace('(บาท)', '').replace('"', '').strip() for col in df3.columns]
+    df3 = df3.drop(columns=['ที่', 'รวมทั้งสิ้น'])
     df3['เดือน'] = df3['เดือน'].str.strip()
     df3.set_index('เดือน', inplace=True)
     for col in df3.columns:
         if col != 'เดือน':
-            df3[col] = pd.to_numeric(df3[col].astype(str).str.replace(',', ''), errors='coerce')
-            
+            df3[col] = df3[col].astype(str).str.replace(',', '').astype(float)
+        
     df1_melted = df1.reset_index().melt(id_vars='จังหวัด', var_name='เดือน', value_name='ยอดขาย')
     national_average = df1.mean()
     
