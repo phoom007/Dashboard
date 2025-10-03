@@ -158,29 +158,39 @@ def load_data():
 
     def clean_and_load_data(data_str):
         return pd.read_csv(io.StringIO(data_str), sep='\t', quotechar='"', engine='python', on_bad_lines='skip')
+    
+    # --- *** ส่วนที่แก้ไข *** ---
+    # โหลด df1
+    df1_raw = clean_and_load_data(data1_str)
+    # ทำความสะอาดชื่อคอลัมน์ทั้งหมดก่อน
+    df1_raw.columns = [col.replace('\n', ' ').replace('(บาท)', '').replace('"', '').strip() for col in df1_raw.columns]
+    # กำหนดรายชื่อคอลัมน์เดือนที่เราต้องการเก็บไว้
+    month_cols = [col for col in df1_raw.columns if '2566' in col or '2567' in col]
+    # สร้าง list ของคอลัมน์ทั้งหมดที่ต้องการเก็บ (จังหวัด + เดือน)
+    columns_to_keep = ['จังหวัด'] + month_cols
+    # สร้าง DataFrame ใหม่โดยเลือกเฉพาะคอลัมน์ที่ต้องการ
+    df1 = df1_raw[columns_to_keep].copy()
+    # ตั้งค่า index
+    df1.set_index('จังหวัด', inplace=True)
+    # --- *** จบส่วนที่แก้ไข *** ---
 
-    df1 = clean_and_load_data(data1_str)
-    df1.columns = [col.replace('\n', ' ').replace('(บาท)', '').replace('"', '').strip() for col in df1.columns]
-    df1 = df1.drop(columns=['ที่', 'เขตตรวจ ราชการที่', 'รวม 12 เดือน'])
-    df1 = df1.set_index('จังหวัด')
-    month_cols = df1.columns.tolist()
-    for col in month_cols:
-        df1[col] = df1[col].astype(str).str.replace(',', '').astype(float)
-
+    # โหลด df2 (เหมือนเดิม)
     df2 = clean_and_load_data(data2_str)
     df2 = df2.drop(columns=['ที่', 'รวม'])
     df2['เดือน'] = df2['เดือน'].str.strip()
-    df2 = df2.set_index('เดือน')
+    df2.set_index('เดือน', inplace=True)
     for col in df2.columns:
         df2[col] = df2[col].astype(str).str.replace(',', '').astype(float)
 
+    # โหลด df3 (เหมือนเดิม)
     df3 = clean_and_load_data(data3_str)
     df3.columns = [col.replace('\n', ' ').replace('(บาท)', '').replace('"', '').strip() for col in df3.columns]
     df3 = df3.drop(columns=['ที่', 'รวมทั้งสิ้น'])
     df3['เดือน'] = df3['เดือน'].str.strip()
-    df3 = df3.set_index('เดือน')
+    df3.set_index('เดือน', inplace=True)
     for col in df3.columns:
-        df3[col] = df3[col].astype(str).str.replace(',', '').astype(float)
+        if col != 'เดือน':
+            df3[col] = df3[col].astype(str).str.replace(',', '').astype(float)
         
     df1_melted = df1.reset_index().melt(id_vars='จังหวัด', var_name='เดือน', value_name='ยอดขาย')
     national_average = df1.mean()
