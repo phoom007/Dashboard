@@ -181,12 +181,12 @@ def load_data():
     for col in df2.columns:
         df2[col] = pd.to_numeric(df2[col].astype(str).str.replace(',', ''), errors='coerce')
 
-    # --- ทำความสะอาด DF3 ---
+    # --- ทำความสะอาด DF3 (*** ส่วนที่แก้ไข ***) ---
     df3_raw = clean_and_load_data(data3_str)
-    df3_raw.columns = [col.replace('\n', ' ').replace('(บาท)', '').replace('"', '').strip() for col in df3_raw.columns]
+    df3_raw.columns = [col.replace('\n', ' ').replace('"', '').replace('(บาท)','').strip().replace('  ', ' ') for col in df3_raw.columns]
     columns_to_keep_df3 = [
         'เดือน', 'อาหาร', 'เครื่องดื่ม', 'ผ้าและเครื่องแต่งกาย', 
-        'เครื่องใช้และ เครื่องประดับตกแต่ง', 'สมุนไพรที่ ไม่ใช่อาหารและยา'
+        'เครื่องใช้และเครื่องประดับตกแต่ง', 'สมุนไพรที่ไม่ใช่อาหารและยา'
     ]
     df3 = df3_raw[columns_to_keep_df3].copy()
     df3['เดือน'] = df3['เดือน'].str.strip()
@@ -252,8 +252,6 @@ selected_province = st.sidebar.selectbox(
 )
 
 # --- แสดงผลกราฟ ---
-
-# ----- กราฟที่ 1: แผนที่ประเทศไทย (Choropleth Map) -----
 st.subheader(f'ยอดขาย OTOP รายจังหวัด ประจำเดือน {selected_month}')
 fig_map = px.choropleth(
     df1_melted[df1_melted['เดือน'] == selected_month],
@@ -268,12 +266,9 @@ fig_map.update_geos(fitbounds="locations", visible=False)
 fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
 st.plotly_chart(fig_map, use_container_width=True)
 
-
-# --- สร้าง Layout แบบ 2 คอลัมน์ ---
 col1, col2 = st.columns(2)
 
 with col1:
-    # ----- กราฟที่ 2: จัดอันดับจังหวัดตามยอดขาย (Bar Chart) -----
     st.subheader(f'20 อันดับจังหวัดยอดขายสูงสุด เดือน {selected_month}')
     monthly_data = df1[[selected_month]].sort_values(by=selected_month, ascending=False).reset_index()
     colors = ['#FFA500' if prov == selected_province else '#1f77b4' for prov in monthly_data['จังหวัด']]
@@ -289,7 +284,6 @@ with col1:
     fig_bar.update_traces(marker_color=colors)
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # ----- กราฟที่ 4: ยอดขายตามช่องทาง (Stacked Bar) -----
     st.subheader(f'สัดส่วนยอดขายตามช่องทาง เดือน {selected_month}')
     channel_data_series = df2.loc[[m.strip() for m in df2.index if selected_month.split(' ')[0] in m]].iloc[0]
     channel_df = channel_data_series.reset_index()
@@ -303,7 +297,6 @@ with col1:
     st.plotly_chart(fig_channel, use_container_width=True)
 
 with col2:
-    # ----- กราฟที่ 3: แนวโน้มยอดขายเทียบค่าเฉลี่ย (Line Chart) -----
     st.subheader(f'แนวโน้มยอดขายของ {selected_province}')
     fig_line = go.Figure()
     if selected_province != 'ภาพรวม':
@@ -316,7 +309,6 @@ with col2:
     )
     st.plotly_chart(fig_line, use_container_width=True)
 
-    # ----- กราฟที่ 5: ยอดขายตามประเภทสินค้า (Stacked Bar) -----
     st.subheader(f'สัดส่วนยอดขายตามประเภทสินค้า เดือน {selected_month}')
     product_data_series = df3.loc[[m.strip() for m in df3.index if selected_month.split(' ')[0] in m]].iloc[0]
     product_df = product_data_series.reset_index()
