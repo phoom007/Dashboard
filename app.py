@@ -5,58 +5,145 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import io # สำคัญมาก สำหรับการอ่านข้อมูล string
+import io  # สำคัญมาก สำหรับการอ่านข้อมูล string
 import json
 import urllib.request
+import time  # สำหรับ simulation loading animations ถ้าต้องการ
 
 # ตั้งค่าหน้าเว็บให้เป็นแบบ Wide Mode และกำหนดชื่อ/ไอคอน
 st.set_page_config(
     page_title="OTOP Sales Dashboard",
     page_icon="🛍️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # ==============================================================================
-# ส่วนที่ 2: CSS สำหรับการออกแบบสไตล์ (Dark/Light Mode, Rounded Corners)
+# ส่วนที่ 2: CSS สำหรับการออกแบบสไตล์ (Dark/Light Mode, Rounded Corners, Animations)
 # ==============================================================================
 def load_css():
+    # CSS พื้นฐานร่วมกัน
+    css_common = """
+    <style>
+        /* --- Global Styles --- */
+        body {
+            transition: background-color 0.5s ease;
+        }
+        .main {
+            animation: fadeIn 1.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* --- Sidebar Animation --- */
+        [data-testid="stSidebar"] {
+            animation: slideInLeft 0.8s ease-out;
+        }
+        @keyframes slideInLeft {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        /* --- Header Animation --- */
+        h1 {
+            animation: bounceIn 1s ease;
+        }
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: scale(0.3); }
+            50% { opacity: 1; transform: scale(1.05); }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+        /* --- KPI Card Enhancements --- */
+        .kpi-card {
+            padding: 1.5rem;
+            border-radius: 20px;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+        }
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1), transparent);
+            transform: rotate(45deg);
+            transition: all 0.5s;
+            opacity: 0;
+        }
+        .kpi-card:hover::before {
+            opacity: 1;
+            top: -100%;
+            left: -100%;
+        }
+        .kpi-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        }
+        .kpi-value {
+            animation: countUp 2s ease-out;
+        }
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* --- Tab Content Animation --- */
+        .content-box {
+            padding: 1.5rem;
+            border-radius: 20px;
+            animation: fadeInUp 1s ease-in-out;
+            transition: all 0.3s;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .content-box:hover {
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        /* --- Chart Animations --- */
+        .plotly-chart {
+            animation: chartFadeIn 1.2s ease;
+        }
+        @keyframes chartFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        /* --- Pie Chart Spin on Load --- */
+        .pie-chart {
+            animation: spinIn 1.5s ease-in-out;
+        }
+        @keyframes spinIn {
+            from { transform: rotate(-180deg); opacity: 0; }
+            to { transform: rotate(0deg); opacity: 1; }
+        }
+    </style>
+    """
+
     # CSS สำหรับ Light Mode
     css_light = """
     <style>
-        /* --- การ์ด KPI --- */
+        /* Light Mode Specific */
         .kpi-card {
             background-color: #FFFFFF;
-            padding: 1.5rem;
-            border-radius: 15px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             border: 1px solid #E0E0E0;
-            transition: all 0.3s ease-in-out;
-        }
-        .kpi-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
         }
         .kpi-title {
-            font-size: 1rem;
-            font-weight: 600;
             color: #4F4F4F;
-            margin-bottom: 0.5rem;
         }
         .kpi-value {
-            font-size: 2.2rem;
-            font-weight: 700;
             color: #1A237E; /* สีน้ำเงินเข้ม */
         }
         .kpi-delta {
-            font-size: 0.9rem;
             color: #828282;
         }
-
-        /* --- กรอบเนื้อหาในแท็บ --- */
         .content-box {
             background-color: #F8F9FA;
-            padding: 1rem;
-            border-radius: 15px;
             border: 1px solid #E0E0E0;
         }
     </style>
@@ -65,45 +152,33 @@ def load_css():
     # CSS สำหรับ Dark Mode
     css_dark = """
     <style>
-        /* --- การ์ด KPI --- */
+        /* Dark Mode Specific */
         .kpi-card {
-            background-color: #1E1E1E; /* สีพื้นหลังการ์ด */
-            padding: 1.5rem;
-            border-radius: 15px;
+            background-color: #1E1E1E;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             border: 1px solid #424242;
-            transition: all 0.3s ease-in-out;
         }
         .kpi-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
             border: 1px solid #757575;
         }
         .kpi-title {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #BDBDBD; /* สีตัวอักษร title */
-            margin-bottom: 0.5rem;
+            color: #BDBDBD;
         }
         .kpi-value {
-            font-size: 2.2rem;
-            font-weight: 700;
             color: #90CAF9; /* สีฟ้าสว่าง */
         }
         .kpi-delta {
-            font-size: 0.9rem;
             color: #9E9E9E;
         }
-        /* --- กรอบเนื้อหาในแท็บ --- */
         .content-box {
             background-color: #2C2C2C;
-            padding: 1rem;
-            border-radius: 15px;
             border: 1px solid #424242;
         }
     </style>
     """
-    # ตรวจสอบ theme ที่เลือกและใส่ CSS ที่เหมาะสม
+
+    # ใส่ CSS ร่วมก่อน แล้วตามด้วย theme-specific
+    st.markdown(css_common, unsafe_allow_html=True)
     if st.session_state.theme == "Dark":
         st.markdown(css_dark, unsafe_allow_html=True)
     else:
@@ -271,7 +346,6 @@ def load_geojson():
 df1, df2, df3, df1_melted, national_average, month_cols = load_all_data()
 thailand_geojson = load_geojson()
 
-
 # Mapping ชื่อจังหวัด ไทย -> อังกฤษ สำหรับแผนที่
 province_name_map = {
     'กรุงเทพมหานคร': 'Bangkok', 'สมุทรปราการ': 'Samut Prakan', 'นนทบุรี': 'Nonthaburi', 'ปทุมธานี': 'Pathum Thani',
@@ -314,17 +388,16 @@ theme_mode = st.sidebar.radio(
     key="theme_selector"
 )
 st.session_state.theme = theme_mode
-load_css() # โหลด CSS ตาม theme ที่เลือก
+load_css()  # โหลด CSS ตาม theme ที่เลือก
 
 # กำหนด template ของ Plotly ตาม theme
 theme_plotly = "plotly_white" if st.session_state.theme == "Light" else "plotly_dark"
-
 
 # Filters
 selected_month = st.sidebar.selectbox(
     'เลือกเดือน:',
     options=month_cols,
-    index=len(month_cols)-1 # เลือกเดือนล่าสุดเป็นค่าเริ่มต้น
+    index=len(month_cols)-1  # เลือกเดือนล่าสุดเป็นค่าเริ่มต้น
 )
 selected_province = st.sidebar.selectbox(
     'เลือกจังหวัด (เพื่อดูแนวโน้ม):',
@@ -377,7 +450,7 @@ with col3:
         </div>
         """, unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True) # เว้นวรรค
+st.markdown("<br>", unsafe_allow_html=True)  # เว้นวรรค
 
 # --- แท็บแสดงผล ---
 tab1, tab2 = st.tabs(["📊 ภาพรวมรายจังหวัด", "📈 วิเคราะห์เชิงลึก"])
@@ -385,9 +458,10 @@ tab1, tab2 = st.tabs(["📊 ภาพรวมรายจังหวัด", "
 with tab1:
     st.subheader(f'ยอดขาย OTOP รายจังหวัด ประจำเดือน {selected_month}')
     
-    col1_tab1, col2_tab1 = st.columns([3, 2]) # แบ่งคอลัมน์ในแท็บ อัตราส่วน 3:2
+    col1_tab1, col2_tab1 = st.columns([3, 2])  # แบ่งคอลัมน์ในแท็บ อัตราส่วน 3:2
 
     with col1_tab1:
+        st.markdown('<div class="content-box">', unsafe_allow_html=True)
         st.markdown("##### แผนที่แสดงยอดขายรายจังหวัด")
         _map_df = df1_melted[df1_melted['เดือน'] == selected_month].dropna(subset=['province_eng'])
 
@@ -402,14 +476,18 @@ with tab1:
                 mapbox_style="carto-positron" if st.session_state.theme == "Light" else "carto-darkmatter",
                 center={"lat": 13.736717, "lon": 100.523186},
                 zoom=4.5,
-                opacity=0.6
+                opacity=0.6,
+                hover_name='จังหวัด',
+                hover_data={'ยอดขาย': True}
             )
             fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
             st.plotly_chart(fig_map, use_container_width=True)
         else:
             st.info("ไม่สามารถแสดงแผนที่ได้")
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with col2_tab1:
+        st.markdown('<div class="content-box">', unsafe_allow_html=True)
         st.markdown("##### 20 อันดับจังหวัดยอดขายสูงสุด")
         monthly_data = df1[[selected_month]].sort_values(by=selected_month, ascending=False).reset_index()
         
@@ -420,28 +498,34 @@ with tab1:
             orientation='h',
             labels={'จังหวัด': '', selected_month: 'ยอดขาย (บาท)'},
             template=theme_plotly,
-            height=600
+            height=600,
+            color=selected_month,
+            color_continuous_scale="Viridis"
         )
         fig_bar.update_layout(yaxis={'categoryorder':'total ascending'})
         st.plotly_chart(fig_bar, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 with tab2:
     st.subheader(f'การวิเคราะห์แนวโน้มและสัดส่วนยอดขาย')
     
     # --- กราฟแนวโน้ม ---
+    st.markdown('<div class="content-box">', unsafe_allow_html=True)
     st.markdown(f"##### แนวโน้มยอดขายของ: **{selected_province}**")
     fig_line = go.Figure()
     if selected_province != 'ภาพรวม':
-        fig_line.add_trace(go.Scatter(x=month_cols, y=df1.loc[selected_province], mode='lines+markers', name=selected_province))
+        fig_line.add_trace(go.Scatter(x=month_cols, y=df1.loc[selected_province], mode='lines+markers', name=selected_province, line=dict(width=3)))
 
-    fig_line.add_trace(go.Scatter(x=month_cols, y=national_average, mode='lines', name='ค่าเฉลี่ยทั้งประเทศ', line=dict(dash='dash')))
+    fig_line.add_trace(go.Scatter(x=month_cols, y=national_average, mode='lines', name='ค่าเฉลี่ยทั้งประเทศ', line=dict(dash='dash', width=2)))
     fig_line.update_layout(
         xaxis_title='เดือน', yaxis_title='ยอดขาย (บาท)', xaxis_tickangle=-45, height=400,
         template=theme_plotly,
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
+        hovermode="x unified"
     )
     st.plotly_chart(fig_line, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -449,6 +533,7 @@ with tab2:
     
     with col1_tab2:
         # --- กราฟช่องทาง ---
+        st.markdown('<div class="content-box pie-chart">', unsafe_allow_html=True)
         st.markdown(f"##### สัดส่วนยอดขายตามช่องทาง ({selected_month})")
         month_key = selected_month.split(' ')[0]
         idx_match = next((idx for idx in df2.index if str(idx).startswith(month_key)), None)
@@ -459,14 +544,18 @@ with tab2:
                 names=channel_data.index,
                 hole=.4,
                 template=theme_plotly,
-                title=""
+                title="",
+                color_discrete_sequence=px.colors.qualitative.Pastel
             )
+            fig_pie_channel.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig_pie_channel, use_container_width=True)
         else:
             st.info("ไม่พบข้อมูลช่องทางสำหรับเดือนที่เลือก")
+        st.markdown('</div>', unsafe_allow_html=True)
             
     with col2_tab2:
         # --- กราฟประเภทสินค้า ---
+        st.markdown('<div class="content-box pie-chart">', unsafe_allow_html=True)
         st.markdown(f"##### สัดส่วนยอดขายตามประเภทสินค้า ({selected_month})")
         month_key = selected_month.split(' ')[0]
         idx_match = next((idx for idx in df3.index if str(idx).startswith(month_key)), None)
@@ -477,8 +566,11 @@ with tab2:
                 names=product_data.index,
                 hole=.4,
                 template=theme_plotly,
-                title=""
+                title="",
+                color_discrete_sequence=px.colors.qualitative.Pastel
             )
+            fig_pie_product.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig_pie_product, use_container_width=True)
         else:
             st.info("ไม่พบข้อมูลประเภทสินค้าสำหรับเดือนที่เลือก")
+        st.markdown('</div>', unsafe_allow_html=True)
