@@ -1,7 +1,7 @@
+# components/mapbox.py  (เวอร์ชันแก้ error Ambiguous input)
 import streamlit as st
 import plotly.express as px
 import pandas as pd
-from utils.formatters import fmt_baht
 
 def render_thailand_map(df1, df1_melted, thailand_geojson, selected_month, theme_mode="Light"):
     st.markdown("##### แผนที่ยอดขายรายจังหวัด (โทนสีตามมูลค่า, hover มีอันดับ/สัดส่วน)")
@@ -10,9 +10,12 @@ def render_thailand_map(df1, df1_melted, thailand_geojson, selected_month, theme
         st.info("ไม่สามารถแสดงแผนที่ได้")
         return
 
-    total = _map_df["ยอดขาย"].sum()
-    _map_df["share"] = _map_df["ยอดขาย"] / total
-    _map_df["rank"] = _map_df["ยอดขาย"].rank(ascending=False, method="min").astype(int)
+    total = float(_map_df["ยอดขาย"].sum()) or 1.0
+
+    # สร้างคอลัมน์ใหม่เพื่อใช้ใน hover (หลีกเลี่ยงชื่อซ้ำกับคอลัมน์จริง)
+    _map_df["ยอดขาย (บาท)"] = _map_df["ยอดขาย"]
+    _map_df["สัดส่วน (%)"]   = (_map_df["ยอดขาย"] / total) * 100.0
+    _map_df["อันดับ"]        = _map_df["ยอดขาย"].rank(ascending=False, method="min").astype(int)
 
     fig_map = px.choropleth_mapbox(
         _map_df,
@@ -25,17 +28,19 @@ def render_thailand_map(df1, df1_melted, thailand_geojson, selected_month, theme
         center={"lat": 13.7367, "lon": 100.5232},
         zoom=4.6,
         opacity=0.65,
-        hover_name="province_eng",
+        hover_name="จังหวัด",
         hover_data={
-            "ยอดขาย": True,
-            "share": lambda s: (s*100).round(2),
-            "rank": True,
-            "province_eng": False
+            "ยอดขาย (บาท)": ':.0f',
+            "สัดส่วน (%)": ':.2f',
+            "อันดับ": True
         }
     )
     fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=520)
     st.plotly_chart(fig_map, use_container_width=True)
 
-    # ปุ่มดาวน์โหลด CSV
-    csv_bytes = _map_df[["จังหวัด","ยอดขาย","share","rank"]].to_csv(index=False).encode("utf-8")
-    st.download_button("⬇️ ดาวน์โหลดข้อมูล CSV ของแผนที่", data=csv_bytes, file_name="map_province_sales.csv", mime="text/csv")
+    # ปุ่มดาวน์โหลด CSV ของข้อมูลที่ใช้ในแผนที่
+    csv_bytes = _map_df[["จังหวัด","ยอดขาย (บาท)","สัดส่วน (%)","อันดับ"]].to_csv(index=False).encode("utf-8")
+    st.download_button("⬇️ ดาวน์โหลดข้อมูล CSV ของแผนที่",
+                       data=csv_bytes,
+                       file_name="map_province_sales.csv",
+                       mime="text/csv")
