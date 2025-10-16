@@ -24,7 +24,7 @@ def render_thailand_map(df1, df1_melted, thailand_geojson, selected_month, theme
         featureidkey="properties.name",
         color='ยอดขาย',
         color_continuous_scale="Viridis",
-        mapbox_style="carto-positron" if theme_mode=="Light" else "carto-darkmatter",
+        mapbox_style="carto-positron",   # สว่างตลอด
         center={"lat": 13.7367, "lon": 100.5232},
         zoom=4.6,
         opacity=0.65,
@@ -44,3 +44,4 @@ def render_thailand_map(df1, df1_melted, thailand_geojson, selected_month, theme
                        data=csv_bytes,
                        file_name="map_province_sales.csv",
                        mime="text/csv")
+
