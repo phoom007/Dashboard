@@ -81,7 +81,7 @@ def render_kpis(df1: pd.DataFrame, df2: pd.DataFrame, df3: pd.DataFrame, selecte
         },
     ]
 
-    st.markdown('<div class="kpi-grid">', unsafe_allow_html=True)
+    st.markdown('<div class="kpi-row">', unsafe_allow_html=True)
     for c in cards:
         pill_html = f'<div class="{c["pill"]["cls"]}">{c["pill"]["text"]}</div>' if c.get("pill") else ""
         st.markdown(f"""
@@ -98,3 +98,4 @@ def render_kpis(df1: pd.DataFrame, df2: pd.DataFrame, df3: pd.DataFrame, selecte
           </div>
         """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
+
