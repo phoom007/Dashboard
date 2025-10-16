@@ -1,32 +1,29 @@
 # components/mapbox.py
+# -*- coding: utf-8 -*-
 import streamlit as st
 import plotly.express as px
+import pandas as pd
 
-def render_thailand_map(df1, df1_melted, thailand_geojson, selected_month):
-    st.markdown("##### แผนที่ยอดขายรายจังหวัด (โทนสว่าง)")
-    _map_df = df1_melted[df1_melted['เดือน'] == selected_month].dropna(subset=['province_eng']).copy()
-    if _map_df.empty or thailand_geojson is None:
+def render_thailand_map(df1: pd.DataFrame, df1_melted: pd.DataFrame, th_geojson, selected_month: str):
+    st.subheader(f'ยอดขาย OTOP รายจังหวัด • {selected_month}')
+    _map_df = df1_melted[df1_melted["เดือน"] == selected_month].dropna(subset=["province_eng"])
+    if th_geojson is None or _map_df.empty:
         st.info("ไม่สามารถแสดงแผนที่ได้")
         return
 
-    total = float(_map_df["ยอดขาย"].sum()) or 1.0
-    _map_df["ยอดขาย (บาท)"] = _map_df["ยอดขาย"]
-    _map_df["สัดส่วน (%)"]   = (_map_df["ยอดขาย"] / total) * 100.0
-    _map_df["อันดับ"]        = _map_df["ยอดขาย"].rank(ascending=False, method="min").astype(int)
-
     fig_map = px.choropleth_mapbox(
         _map_df,
-        geojson=thailand_geojson,
-        locations='province_eng',
+        geojson=th_geojson,
+        locations="province_eng",
         featureidkey="properties.name",
-        color='ยอดขาย',
+        color="ยอดขาย",
         color_continuous_scale="Viridis",
-        mapbox_style="carto-positron",  # สว่างตลอด
-        center={"lat": 13.7367, "lon": 100.5232},
-        zoom=4.6,
-        opacity=0.65,
+        mapbox_style="carto-positron",   # สว่างเสมอ
+        center={"lat": 13.736717, "lon": 100.523186},
+        zoom=4.5,
+        opacity=0.6,
         hover_name="จังหวัด",
-        hover_data={"ยอดขาย (บาท)": ':.0f', "สัดส่วน (%)": ':.2f', "อันดับ": True}
+        hover_data={"เดือน": True, "province_eng": False, "ยอดขาย": ":,d"}
     )
-    fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=520)
-    st.plotly_chart(fig_map, use_container_width=True)
+    fig_map.update_layout(margin=dict(r=0, t=0, l=0, b=0))
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
