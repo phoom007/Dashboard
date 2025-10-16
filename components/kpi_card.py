@@ -15,7 +15,6 @@ def _growth(cur, prev):
     return ((cur - prev) / prev) * 100.0
 
 def render_kpis(df1: pd.DataFrame, df2: pd.DataFrame, df3: pd.DataFrame, selected_month: str):
-    # คำนวณ KPI
     months = list(df1.columns)
     prev_m = _prev_month(months, selected_month)
 
@@ -44,10 +43,12 @@ def render_kpis(df1: pd.DataFrame, df2: pd.DataFrame, df3: pd.DataFrame, selecte
             fastest_name = gr.idxmax()
             fastest_rate = float(gr.max())
 
-    # สร้างการ์ด 4 ใบ — สี: ม่วง / น้ำเงิน / เขียวมิ้นต์ / พีช
+    arrow = "▲" if mom >= 0 else "▼"
+    pill_cls = "kpi-pill pos" if mom >= 0 else "kpi-pill neg"
+
     cards = [
         {
-            "cls": "kpi-card kpi--purple",
+            "cls": "kpi-card kpi-compact kpi--purple",
             "icon": "🛒",
             "value": f"฿{total_cur:,.0f}",
             "title": "ยอดขายรวมทั้งประเทศ",
@@ -55,7 +56,7 @@ def render_kpis(df1: pd.DataFrame, df2: pd.DataFrame, df3: pd.DataFrame, selecte
             "pill": None,
         },
         {
-            "cls": "kpi-card kpi--blue",
+            "cls": "kpi-card kpi-compact kpi--blue",
             "icon": "🏆",
             "value": f"{top_province}",
             "title": "จังหวัดขายสูงสุด",
@@ -63,7 +64,7 @@ def render_kpis(df1: pd.DataFrame, df2: pd.DataFrame, df3: pd.DataFrame, selecte
             "pill": None,
         },
         {
-            "cls": "kpi-card kpi--green",
+            "cls": "kpi-card kpi-compact kpi--green",
             "icon": "🛍️",
             "value": f"{online_ratio:,.2f}%",
             "title": "สัดส่วนออนไลน์",
@@ -71,26 +72,28 @@ def render_kpis(df1: pd.DataFrame, df2: pd.DataFrame, df3: pd.DataFrame, selecte
             "pill": None,
         },
         {
-            "cls": "kpi-card kpi--peach",
+            "cls": "kpi-card kpi-compact kpi--peach",
             "icon": "📈",
             "value": f"{mom:,.2f}%",
             "title": "การเติบโต MoM",
-            "sub": "ยอดขายรวมเทียบเดือนก่อนหน้า"
-                   + (f"<br/><b>⚡ จังหวัดเติบโตเร็วสุด:</b> {fastest_name} ({fastest_rate:,.2f}%)" if fastest_name!="-" else ""),
-            "pill": {"text": f"{'▲' if mom>=0 else '▼'} {mom:,.2f}%", "cls": ("kpi-pill pos" if mom>=0 else "kpi-pill neg")},
+            "sub": f"จังหวัดเติบโตเร็วสุด: {fastest_name} ({fastest_rate:,.2f}%)" if fastest_name!="-" else "เปรียบเทียบกับเดือนก่อนหน้า",
+            "pill": {"text": f"{arrow} {mom:,.2f}%", "cls": pill_cls},
         },
     ]
 
-    # Render
     st.markdown('<div class="kpi-grid">', unsafe_allow_html=True)
     for c in cards:
-        pill_html = f'<div class="{c["pill"]["cls"]}">{c["pill"]["text"]}</div>' if c["pill"] else ""
+        pill_html = f'<div class="{c["pill"]["cls"]}">{c["pill"]["text"]}</div>' if c.get("pill") else ""
         st.markdown(f"""
           <div class="{c['cls']}">
             {pill_html}
-            <div class="kpi-icon">{c['icon']}</div>
-            <div class="kpi-value">{c['value']}</div>
-            <div class="kpi-title">{c['title']}</div>
+            <div class="kpi-top">
+              <div class="kpi-icon">{c['icon']}</div>
+              <div>
+                <div class="kpi-value">{c['value']}</div>
+                <div class="kpi-title">{c['title']}</div>
+              </div>
+            </div>
             <div class="kpi-sub">{c['sub']}</div>
           </div>
         """, unsafe_allow_html=True)
