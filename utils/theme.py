@@ -19,13 +19,17 @@ def inject_global_css():
          Desktop: 4 ใบในแถวเดียวเท่ากัน
          <= 1024px: 2 ใบ/แถว
       */
-      .kpi-grid{
-        display:grid;
-        grid-template-columns: repeat(4, minmax(0,1fr));
-        gap:14px;
-        margin:10px 0 18px 0;
-      }
-      @media (max-width:1024px){
+      .kpi-row{
+          display:flex; gap:14px; margin:10px 0 18px 0;
+          overflow-x:auto; padding-bottom:4px;
+          scrollbar-width: thin;
+        }
+        .kpi-card{
+          flex:0 0 calc(25% - 10.5px);  /* 4 อันต่อบรรทัด */
+          min-width:280px;
+          /* …สไตล์อื่นตามที่ตั้งไว้… */
+        }
+        @media (min-width:1280px){ .kpi-card{ min-width:0; } }
         .kpi-grid{ grid-template-columns: repeat(2, minmax(0,1fr)); }
       }
 
@@ -122,5 +126,6 @@ def inject_global_css():
 def get_plotly_template():
     # template กราฟให้ใช้ plotly_white ตลอด
     return "plotly_white"
+
 
 
