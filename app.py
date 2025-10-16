@@ -51,25 +51,36 @@ def main():
     render_kpis(df1, df2, df3, selected_month)
 
     # 5) Global controls + Main charts (ซ้าย-ขวา)
-    render_time_kind_controls(prefix="main")  # เลื่อนช่วงเวลา/ชนิดกราฟ (auto-unique key)
+    render_time_kind_controls(prefix="main")
     render_main_row_charts(
-        df1, df2, selected_month,
+        df1=df1,
+        df2=df2,
+        selected_month=selected_month,
+        month_cols=month_cols,                 # ✅ ส่ง month_cols
+        selected_province=selected_province,   # ✅ ส่งจังหวัดที่เลือก
         plotly_template=get_plotly_template(),
         key_prefix="main",
     )
-
+    
     st.markdown("---")
-
-    # 6) กราฟใหม่ 2 อัน (มี highlight ชัดเจน, ตัวอักษรใหญ่)
+    
+    # 6) กราฟใหม่ 2 อัน (ให้ตอบสนองจังหวัดด้วย)
     render_regional_growth(
-        df1=df1, month_cols=month_cols, selected_month=selected_month,
-        plotly_template=get_plotly_template(), key_prefix="below_main"
+        df1=df1,
+        month_cols=month_cols,
+        selected_month=selected_month,
+        selected_province=selected_province,   # ✅ ไฮไลต์ภูมิภาคของจังหวัดที่เลือก
+        plotly_template=get_plotly_template(),
+        key_prefix="below_main",
     )
+    
     render_product_category_performance(
-        df3=df3, selected_month=selected_month,
-        plotly_template=get_plotly_template(), key_prefix="below_main"
+        df3=df3,
+        selected_month=selected_month,
+        selected_province=selected_province,   # ✅ แสดงป้ายแจ้ง และหัวข้อสะท้อนจังหวัดที่เลือก
+        plotly_template=get_plotly_template(),
+        key_prefix="below_main",
     )
-
     st.markdown("---")
 
     # 7) Tabs — ทั้งสองแท็บมี Revenue Sources (เดือนเดียว) และ CDD Embeds
