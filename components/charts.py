@@ -96,6 +96,7 @@ def render_cdd_sources_embeds(key_prefix="cdd"):
         "เลือกหน้า",
         options=list(url_map.keys()),
         format_func=lambda k: k.upper(),
-        key=f"cdd_select_{key_prefix}",
+        key=f"cdd_select_{key_prefix}",   # ← key ให้ selectbox ได้เหมือนเดิม
     )
-    st.components.v1.iframe(url_map[key], height=420, scrolling=True, key=f"cdd_iframe_{key_prefix}")
+    # 👇 เอา key ออกจาก iframe (Streamlit ไม่รองรับ)
+    st.components.v1.iframe(url_map[key], height=420, scrolling=True)
