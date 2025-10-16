@@ -1,10 +1,9 @@
 # components/mapbox.py
 import streamlit as st
 import plotly.express as px
-import pandas as pd
 
 def render_thailand_map(df1, df1_melted, thailand_geojson, selected_month):
-    st.markdown("##### แผนที่ยอดขายรายจังหวัด (โทนสีตามมูลค่า, hover มีอันดับ/สัดส่วน)")
+    st.markdown("##### แผนที่ยอดขายรายจังหวัด (โทนสว่าง)")
     _map_df = df1_melted[df1_melted['เดือน'] == selected_month].dropna(subset=['province_eng']).copy()
     if _map_df.empty or thailand_geojson is None:
         st.info("ไม่สามารถแสดงแผนที่ได้")
@@ -22,7 +21,7 @@ def render_thailand_map(df1, df1_melted, thailand_geojson, selected_month):
         featureidkey="properties.name",
         color='ยอดขาย',
         color_continuous_scale="Viridis",
-        mapbox_style="carto-positron",   # สว่างตลอด
+        mapbox_style="carto-positron",  # สว่างตลอด
         center={"lat": 13.7367, "lon": 100.5232},
         zoom=4.6,
         opacity=0.65,
