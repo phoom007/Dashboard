@@ -55,6 +55,13 @@ def main():
 
     st.markdown("---")
 
+    # NEW: 2 กราฟที่เพิ่ม
+    from components.charts import render_regional_growth, render_product_category_performance
+    render_regional_growth(df1=df1, month_cols=month_cols, selected_month=selected_month,
+                           plotly_template=get_plotly_template(), key_prefix="below_main")
+    render_product_category_performance(df3=df3, selected_month=selected_month,
+                                        plotly_template=get_plotly_template(), key_prefix="below_main")
+
     # 6) Tabs — ทั้งสองแท็บมี Controls + Revenue Sources + CDD Embeds
     tab1, tab2 = st.tabs(["🗺️ ภาพรวมรายจังหวัด", "🔎 วิเคราะห์เชิงลึก"])
 
