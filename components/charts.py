@@ -5,7 +5,6 @@ import plotly.express as px
 import pandas as pd
 
 def render_time_kind_controls(prefix="main"):
-    """ตัวเลือกแบบเลื่อนสำหรับช่วงเวลาและชนิดกราฟ (ใช้ prefix กัน key ซ้ำ)"""
     if "time_range" not in st.session_state:
         st.session_state.time_range = "ALL"
     if "bar_kind" not in st.session_state:
@@ -29,7 +28,7 @@ def render_time_kind_controls(prefix="main"):
             key=f"bar_kind_slider_{prefix}",
         )
 
-def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_white"):
+def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_white", key_prefix="main"):
     tail_map = {"ALL": len(df2), "1M": 1, "6M": 6, "1Y": 12}
     n_tail = tail_map.get(st.session_state.get("time_range", "ALL"), len(df2))
     barmode = "stack" if st.session_state.get("bar_kind", "Stacked") == "Stacked" else "group"
@@ -47,7 +46,7 @@ def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_whi
         )
         fig.update_traces(texttemplate="%{y:,.0f}", textposition="outside", cliponaxis=False)
         fig.update_layout(margin=dict(l=0, r=0, b=0, t=10), legend_title_text="")
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False}, key=f"main_bar_{key_prefix}")
 
     with right:
         st.subheader(f"20 จังหวัดยอดขายสูงสุด ({selected_month})")
@@ -59,26 +58,31 @@ def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_whi
             height=600
         )
         bar.update_layout(yaxis={'categoryorder': 'total ascending'}, margin=dict(l=0, r=0, b=0, t=10))
-        st.plotly_chart(bar, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(bar, use_container_width=True, config={"displayModeBar": False}, key=f"top20_{key_prefix}")
 
-def render_revenue_sources(df2, selected_month, plotly_template="plotly_white"):
+def render_revenue_sources(df2, selected_month, plotly_template="plotly_white", key_prefix="revsrc"):
     st.markdown("#### Revenue Sources (เดือนเดียว)")
     month_key = selected_month.split(" ")[0]
     idx = next((i for i in df2.index if str(i).startswith(month_key)), None)
     if idx is None:
-        st.info("ไม่พบข้อมูลสำหรับเดือนนี้")
+        st.info("ไม่พบข้อมูลสำหรับเดือนนี้", icon="ℹ️")
         return
     s = df2.loc[idx]
     fig = px.pie(values=s.values, names=s.index, hole=.45, template=plotly_template)
     fig.update_layout(margin=dict(l=0, r=0, b=0, t=0), legend_title_text="")
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False}, key=f"pie_{key_prefix}")
 
-def render_cdd_sources_embeds():
+def render_cdd_sources_embeds(key_prefix="cdd"):
     st.markdown("#### แหล่งข้อมูลที่ใช้สร้าง Dashboard (ฝังจาก CDD)")
     url_map = {
         "otop_r06": "https://logi.cdd.go.th/otop/cdd_report/otop_r06.php?year=2567",
         "otop_r05": "https://logi.cdd.go.th/otop/cdd_report/otop_r05.php?year=2567",
         "otop_r04": "https://logi.cdd.go.th/otop/cdd_report/otop_r04.php?year=2567&org_group=0",
     }
-    key = st.selectbox("เลือกหน้า", options=list(url_map.keys()), format_func=lambda k: k.upper())
-    st.components.v1.iframe(url_map[key], height=420)
+    key = st.selectbox(
+        "เลือกหน้า",
+        options=list(url_map.keys()),
+        format_func=lambda k: k.upper(),
+        key=f"cdd_select_{key_prefix}",
+    )
+    st.components.v1.iframe(url_map[key], height=420, scrolling=True)
