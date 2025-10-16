@@ -5,7 +5,9 @@ import plotly.express as px
 import pandas as pd
 
 # ---------- ตัวเลือกแบบเลื่อน (ใช้คีย์กลาง เพื่อให้แท็บไหนปรับก็มีผลกับกราฟหลัก) ----------
-def render_time_kind_controls():
+def render_time_kind_controls(prefix="main"):
+    """ตัวเลือกแบบเลื่อนสำหรับช่วงเวลาและชนิดกราฟ
+       prefix ใช้กัน key ซ้ำ"""
     if "time_range" not in st.session_state:
         st.session_state.time_range = "ALL"
     if "bar_kind" not in st.session_state:
@@ -18,7 +20,7 @@ def render_time_kind_controls():
             label="",
             options=["ALL", "1M", "6M", "1Y"],
             value=st.session_state.time_range,
-            key="time_range_slider",
+            key=f"time_range_slider_{prefix}",   # ใช้ prefix กันชนกัน
         )
     with colB:
         st.caption("ชนิดกราฟ")
@@ -26,7 +28,7 @@ def render_time_kind_controls():
             label="",
             options=["Stacked", "Clustered"],
             value=st.session_state.bar_kind,
-            key="bar_kind_slider",
+            key=f"bar_kind_slider_{prefix}",     # ใช้ prefix กันชนกัน
         )
 
 # ---------- กราฟหลัก (จำนวนเท่าเดิม) ----------
@@ -89,3 +91,4 @@ def render_cdd_sources_embeds():
     }
     key = st.selectbox("เลือกหน้า", options=list(url_map.keys()), format_func=lambda k: k.upper())
     st.components.v1.iframe(url_map[key], height=420)
+
