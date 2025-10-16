@@ -181,13 +181,15 @@ def load_all_data():
 
 @st.cache_data
 def load_geojson():
-    """โหลด GeoJSON ประเทศไทย (ใช้กับ Plotly Mapbox)"""
+    """โหลด GeoJSON ประเทศไทย (ใช้กับ Plotly Mapbox) — ใส่ timeout + fail-safe"""
     url = "https://raw.githubusercontent.com/apisit/thailand.json/master/thailand.json"
     try:
-        with urllib.request.urlopen(url) as u:
+        # timeout สั้น ๆ กันค้าง ถ้าเน็ต/โดเมนล่ม
+        with urllib.request.urlopen(url, timeout=5) as u:
             return json.load(u)
     except Exception as e:
-        st.error(f"โหลดแผนที่ประเทศไทยไม่ได้: {e}")
+        # ไม่ทำให้แอปล่ม — แค่แจ้งเตือนและให้ฟังก์ชันคืน None
+        st.warning("โหลดแผนที่ประเทศไทยไม่สำเร็จ (จะแสดงแดชบอร์ดส่วนอื่นได้ตามปกติ) — สาเหตุ: {}".format(e))
         return None
 
 # =============================================================================
@@ -200,3 +202,4 @@ def _extract_month_cols():
     return cols
 
 month_cols = _extract_month_cols()
+
