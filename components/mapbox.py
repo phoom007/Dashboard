@@ -23,4 +23,11 @@ def render_thailand_map(df1, df1_melted, thailand_geojson, selected_month):
         color='ยอดขาย',
         color_continuous_scale="Viridis",
         mapbox_style="carto-positron",   # สว่างตลอด
-        center={"lat": 13.7367, "lon":
+        center={"lat": 13.7367, "lon": 100.5232},
+        zoom=4.6,
+        opacity=0.65,
+        hover_name="จังหวัด",
+        hover_data={"ยอดขาย (บาท)": ':.0f', "สัดส่วน (%)": ':.2f', "อันดับ": True}
+    )
+    fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=520)
+    st.plotly_chart(fig_map, use_container_width=True)
