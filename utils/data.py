@@ -180,17 +180,71 @@ def load_all_data():
     return df1, df2, df3, df1_melted, national_average
 
 @st.cache_data
-def load_geojson():
-    """โหลด GeoJSON ประเทศไทย (ใช้กับ Plotly Mapbox) — ใส่ timeout + fail-safe"""
-    url = "https://raw.githubusercontent.com/apisit/thailand.json/master/thailand.json"
-    try:
-        # timeout สั้น ๆ กันค้าง ถ้าเน็ต/โดเมนล่ม
-        with urllib.request.urlopen(url, timeout=5) as u:
-            return json.load(u)
-    except Exception as e:
-        # ไม่ทำให้แอปล่ม — แค่แจ้งเตือนและให้ฟังก์ชันคืน None
-        st.warning("โหลดแผนที่ประเทศไทยไม่สำเร็จ (จะแสดงแดชบอร์ดส่วนอื่นได้ตามปกติ) — สาเหตุ: {}".format(e))
-        return None
+def load_all_data():
+    """
+    คืนค่า 6 รายการตามลำดับ:
+    1) df1: ยอดขายรายจังหวัด (index='จังหวัด')
+    2) df2: รายได้ตามช่องทาง (index='เดือน')
+    3) df3: รายได้ตามประเภทสินค้า (index='เดือน')
+    4) df1_melted: สำหรับแผนที่ (มี 'province_eng')
+    5) national_average: ค่าเฉลี่ยทั้งประเทศรายเดือนของ df1 (Series)
+    6) month_cols: รายชื่อคอลัมน์เดือนของ df1
+    """
+    # อ่านจากสตริง CSV
+    df1 = pd.read_csv(io.StringIO(province_data_csv.strip()))
+    df2 = pd.read_csv(io.StringIO(channel_data_csv.strip()))
+    df3 = pd.read_csv(io.StringIO(product_type_data_csv.strip()))
+
+    # ตรวจคอลัมน์หลัก
+    if "จังหวัด" not in df1.columns:
+        raise ValueError("df1 ต้องมีคอลัมน์ 'จังหวัด'")
+    if "เดือน" not in df2.columns:
+        raise ValueError("df2 ต้องมีคอลัมน์ 'เดือน'")
+    if "เดือน" not in df3.columns:
+        raise ValueError("df3 ต้องมีคอลัมน์ 'เดือน'")
+
+    # ตั้ง index
+    df1.set_index("จังหวัด", inplace=True)
+    df2.set_index("เดือน", inplace=True)
+    df3.set_index("เดือน", inplace=True)
+
+    # รายชื่อคอลัมน์เดือน (ของ df1)
+    month_cols = [c for c in df1.columns if ("2566" in c or "2567" in c)]
+    if not month_cols:
+        month_cols = list(df1.columns)
+
+    # Melt สำหรับแผนที่
+    df1_melted = df1.reset_index().melt(id_vars="จังหวัด", var_name="เดือน", value_name="ยอดขาย")
+
+    # Mapping ไทย->อังกฤษ (เฉพาะจังหวัดที่มีใน GeoJSON)
+    province_name_map = {
+        'กรุงเทพมหานคร': 'Bangkok', 'สมุทรปราการ': 'Samut Prakan', 'นนทบุรี': 'Nonthaburi', 'ปทุมธานี': 'Pathum Thani',
+        'พระนครศรีอยุธยา': 'Phra Nakhon Si Ayutthaya', 'อ่างทอง': 'Ang Thong', 'ลพบุรี': 'Lopburi', 'สิงห์บุรี': 'Sing Buri',
+        'ชัยนาท': 'Chai Nat', 'สระบุรี': 'Saraburi', 'ชลบุรี': 'Chon Buri', 'ระยอง': 'Rayong', 'จันทบุรี': 'Chanthaburi',
+        'ตราด': 'Trat', 'ฉะเชิงเทรา': 'Chachoengsao', 'ปราจีนบุรี': 'Prachin Buri', 'นครนายก': 'Nakhon Nayok',
+        'สระแก้ว': 'Sa Kaeo', 'นครราชสีมา': 'Nakhon Ratchasima', 'บุรีรัมย์': 'Buri Ram', 'สุรินทร์': 'Surin',
+        'ศรีสะเกษ': 'Si Sa Ket', 'อุบลราชธานี': 'Ubon Ratchathani', 'ยโสธร': 'Yasothon', 'ชัยภูมิ': 'Chaiyaphum',
+        'อำนาจเจริญ': 'Amnat Charoen', 'หนองบัวลำภู': 'Nong Bua Lam Phu', 'ขอนแก่น': 'Khon Kaen', 'อุดรธานี': 'Udon Thani',
+        'เลย': 'Loei', 'หนองคาย': 'Nong Khai', 'มหาสารคาม': 'Maha Sarakham', 'ร้อยเอ็ด': 'Roi Et', 'กาฬสินธุ์': 'Kalasin',
+        'สกลนคร': 'Sakon Nakhon', 'นครพนม': 'Nakhon Phanom', 'มุกดาหาร': 'Mukdahan', 'เชียงใหม่': 'Chiang Mai',
+        'ลำพูน': 'Lamphun', 'ลำปาง': 'Lampang', 'อุตรดิตถ์': 'Uttaradit', 'แพร่': 'Phrae', 'น่าน': 'Nan',
+        'พะเยา': 'Phayao', 'เชียงราย': 'Chiang Rai', 'แม่ฮ่องสอน': 'Mae Hong Son', 'นครสวรรค์': 'Nakhon Sawan',
+        'อุทัยธานี': 'Uthai Thani', 'กำแพงเพชร': 'Kamphaeng Phet', 'ตาก': 'Tak', 'สุโขทัย': 'Sukhothai',
+        'พิษณุโลก': 'Phitsanulok', 'พิจิตร': 'Phichit', 'เพชรบูรณ์': 'Phetchabun', 'ราชบุรี': 'Ratchaburi',
+        'กาญจนบุรี': 'Kanchanaburi', 'สุพรรณบุรี': 'Suphan Buri', 'นครปฐม': 'Nakhon Pathom', 'สมุทรสาคร': 'Samut Sakhon',
+        'สมุทรสงคราม': 'Samut Songkhram', 'เพชรบุรี': 'Phetchaburi', 'ประจวบคีรีขันธ์': 'Prachuap Khiri Khan',
+        'นครศรีธรรมราช': 'Nakhon Si Thammarat', 'กระบี่': 'Krabi', 'พังงา': 'Phangnga', 'ภูเก็ต': 'Phuket',
+        'สุราษฎร์ธานี': 'Surat Thani', 'ระนอง': 'Ranong', 'ชุมพร': 'Chumphon', 'สงขลา': 'Songkhla', 'สตูล': 'Satun',
+        'ตรัง': 'Trang', 'พัทลุง': 'Phatthalung', 'ปัตตานี': 'Pattani', 'ยะลา': 'Yala', 'นราธิวาส': 'Narathiwat',
+        'บึงกาฬ': 'Bueng Kan'
+    }
+    df1_melted["province_eng"] = df1_melted["จังหวัด"].map(province_name_map)
+
+    # ค่าเฉลี่ยประเทศรายเดือน (Series)
+    national_average = df1[month_cols].mean()
+
+    # >>> รีเทิร์นครบ 6 ค่า <<<
+    return df1, df2, df3, df1_melted, national_average, month_cols
 
 # =============================================================================
 # 4) Utilities: month_cols ให้โมดูลอื่นเรียกใช้
@@ -202,4 +256,5 @@ def _extract_month_cols():
     return cols
 
 month_cols = _extract_month_cols()
+
 
