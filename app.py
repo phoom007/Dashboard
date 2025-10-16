@@ -1,147 +1,48 @@
-# app.py
-# -*- coding: utf-8 -*-
+# app.py (แทนที่บล็อกโหลดข้อมูลเดิมทั้งหมด)
+import pandas as pd
 import streamlit as st
 
-# ---------- Theme / Layout ----------
-from utils.theme import (
-    set_base_page_config,
-    inject_global_css,
-    get_plotly_template,
-)
+try:
+    loaded = load_all_data()
+    if not isinstance(loaded, (list, tuple)):
+        raise ValueError(f"load_all_data() คืนชนิด {type(loaded)} ที่ไม่ใช่ list/tuple")
 
-# ---------- Data loaders ----------
-from utils.data import (
-    load_all_data,   # -> df1, df2, df3, df1_melted, national_avg, month_cols
-    load_geojson,    # -> thailand_geojson
-)
-
-# ---------- Components ----------
-from components.kpi_card import render_kpis
-from components.charts import (
-    render_main_row_charts,
-    render_transactions_and_sources,
-)
-from components.mapbox import render_thailand_map
-
-
-def main() -> None:
-    # 1) Page config & CSS (ต้องทำก่อนวาด UI)
-    set_base_page_config()
-    inject_global_css()
-    plotly_template = get_plotly_template()  # "plotly_white"
-
-    # 2) Session defaults
-    if "display_mode" not in st.session_state:
-        st.session_state.display_mode = "Day"  # เริ่ม Day เสมอ
-
-    # 3) โหลดข้อมูล (กันพัง + debug panel)
-    try:
-        loaded = load_all_data()
-        if not isinstance(loaded, (list, tuple)) or len(loaded) != 6:
-            raise ValueError(
-                f"load_all_data() ต้องคืน 6 ค่า แต่ได้ {type(loaded)} "
-                f"ความยาว {len(loaded) if hasattr(loaded,'__len__') else 'unknown'}"
-            )
+    if len(loaded) == 6:
         df1, df2, df3, df1_melted, national_avg, month_cols = loaded
-    except Exception as e:
-        st.error("❌ โหลดข้อมูลไม่สำเร็จจาก load_all_data()")
-        st.caption("ตรวจไฟล์ utils/data.py ว่าคืนค่าครบ 6 ค่า และคอลัมน์ 'จังหวัด'/'เดือน' ตรงตามที่ใช้")
-        st.exception(e)
-        st.stop()
 
-    th_geo = load_geojson()  # ไม่พังต่อให้ None — ตัวเรนเดอร์แผนที่จะ handle เอง
+    elif len(loaded) == 5:
+        # พยายามเดาว่าค่าที่หายไปคืออะไร แล้วคำนวณให้
+        df1, df2, df3, df1_melted, last_item = loaded
 
-    # 4) Sidebar (โหมด/ฟิลเตอร์)
-    with st.sidebar:
-        st.header("🎛️ การแสดงผลและตัวกรอง")
+        # เดาว่า last_item เป็น month_cols (list/tuple ของชื่อคอลัมน์)
+        if isinstance(last_item, (list, tuple)) and all(isinstance(c, str) for c in last_item):
+            month_cols = list(last_item)
+            national_avg = df1[month_cols].mean()
 
-        # Night/Day toggle (กระทบเฉพาะ KPI ผ่าน CSS; พื้นหลังทั้งแอปยังขาว)
-        is_night = st.toggle("Night 🌙", value=(st.session_state.display_mode == "Night"))
-        st.session_state.display_mode = "Night" if is_night else "Day"
+        # หรือเดาว่า last_item เป็น national_average (Series)
+        elif hasattr(last_item, "index") and hasattr(last_item, "shape"):
+            national_avg = last_item
+            # หา month_cols จาก df1
+            month_cols = [c for c in df1.columns if ("2566" in c or "2567" in c)]
+            if not month_cols:
+                month_cols = [c for c in df1.columns if isinstance(c, str)]
+            if not month_cols:
+                raise ValueError("หา month_cols ไม่เจอจาก df1")
 
-        selected_month = st.selectbox(
-            "เลือกเดือน",
-            options=month_cols,
-            index=len(month_cols) - 1,
-        )
+        else:
+            # ไม่แน่ใจว่า last_item คืออะไร — คำนวณทั้งสองเอง
+            month_cols = [c for c in df1.columns if ("2566" in c or "2567" in c)]
+            if not month_cols:
+                month_cols = [c for c in df1.columns if isinstance(c, str)]
+            if not month_cols:
+                raise ValueError("หา month_cols ไม่เจอจาก df1")
+            national_avg = df1[month_cols].mean()
 
-        selected_province = st.selectbox(
-            "เลือกจังหวัด (สำหรับกราฟแนวโน้ม)",
-            options=["ภาพรวม"] + df1.index.tolist(),
-            index=0,
-        )
+    else:
+        raise ValueError(f"load_all_data() ต้องคืน 5 หรือ 6 ค่า แต่ได้ {len(loaded)} ค่า")
 
-        channel_filter = st.multiselect(
-            "กรองตามช่องทาง (ถ้าว่าง = ทั้งหมด)",
-            options=list(df2.columns),
-            default=[],
-        )
-
-        product_filter = st.multiselect(
-            "กรองตามประเภทสินค้า (ถ้าว่าง = ทั้งหมด)",
-            options=list(df3.columns),
-            default=[],
-        )
-
-    # 5) ส่วนหัว
-    st.title("🛍️ Dashboard สรุปผลการจำหน่ายสินค้า OTOP (ชุดเติบโต)")
-    st.caption(
-        f"ข้อมูลประจำเดือน **{selected_month}** • หน่วยเป็นบาท (฿) • "
-        "แหล่งข้อมูล: **otop_r04, otop_r05, otop_r06** (ดูท้ายหน้า)"
-    )
-
-    # 6) KPI – 4 กล่อง “แถวเดียว” (HTML เดียว)
-    render_kpis(df1, df2, df3, selected_month)
-
-    # 7) กราฟหลักแถวแรก (ซ้าย: แนวโน้มรวม, ขวา: โครงสร้างช่องทาง)
-    df2_view = df2 if not channel_filter else df2.loc[:, channel_filter]
-    render_main_row_charts(
-        df1=df1,
-        df2=df2_view,
-        selected_month=selected_month,
-        plotly_template=plotly_template,
-    )
-
-    st.divider()
-
-    # 8) แผนที่ประเทศไทย (สว่างตลอด)
-    st.subheader("แผนที่ประเทศไทย — ยอดขายรายจังหวัด")
-    render_thailand_map(
-        df1=df1,
-        df1_melted=df1_melted,
-        thailand_geojson=th_geo,
-        selected_month=selected_month,
-        theme_mode=st.session_state.display_mode,
-    )
-
-    st.divider()
-
-    # 9) แนวโน้มจังหวัด + แหล่งข้อมูล CDD (ฝัง r06/r05/r04) + โดนัท Revenue Sources
-    df3_view = df3 if not product_filter else df3.loc[:, product_filter]
-    render_transactions_and_sources(
-        df1=df1,
-        df2=df2_view,
-        df3=df3_view,
-        selected_month=selected_month,
-        selected_province=selected_province,
-        channel_filter=channel_filter,
-        product_filter=product_filter,
-        national_avg=national_avg,
-        plotly_template=plotly_template,
-    )
-
-    # 10) เชิงอธิบายท้ายหน้า (อ้างอิงแหล่งข้อมูล)
-    with st.expander("ℹ️ เกี่ยวกับข้อมูลและการคำนวณ (คลิกเพื่อดู)"):
-        st.markdown(
-            "- หน่วยเงิน: บาท (฿) ตลอดทั้งระบบ\n"
-            "- คำนิยาม:\n"
-            "  - **ยอดขายรวมทั้งประเทศ**: ผลรวมยอดขายทุกจังหวัดของเดือนที่เลือกจาก `df1`\n"
-            "  - **จังหวัดขายสูงสุด**: จังหวัดที่มียอดขายสูงสุดในเดือนที่เลือกจาก `df1`\n"
-            "  - **ประเภทขายดีที่สุด**: ประเภทสินค้าที่มียอดขายสูงสุดในเดือนที่เลือกจาก `df3`\n"
-            "- แหล่งข้อมูลต้นทางที่อ้างอิงในแดชบอร์ด: r04 (รายจังหวัด), r05 (ประเภทสินค้า), r06 (ช่องทาง)\n"
-            "  และถูกฝังให้ดูในแท็บภายในแดชบอร์ดแล้ว"
-        )
-
-
-# ------------------ Run (เรียกตรง ๆ กันหน้าโล่ง) ------------------
-main()
+except Exception as e:
+    st.error("❌ โหลดข้อมูลไม่สำเร็จจาก load_all_data()")
+    st.caption("ตรวจไฟล์ utils/data.py ว่าคืนค่าครบ 6 ค่า หรือให้แอปรองรับ 5 ค่าแบบ fallback นี้แล้ว")
+    st.exception(e)
+    st.stop()
