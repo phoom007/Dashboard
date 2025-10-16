@@ -95,33 +95,54 @@ def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_whi
         st.plotly_chart(fig, use_container_width=True)
         st.caption("คำอธิบาย: เส้นสีน้ำเงินคือยอดขายรวมในแต่ละเดือน, จุดส้ม = เดือนที่เลือก, เส้นประเท่ากับค่าเฉลี่ยช่วงที่เปิดดู")
 
-    # ----- Right: Channel Structure (Stack/Cluster) + total label บนแท่ง
-    with colR:
-        st.subheader("โครงสร้างช่องทาง")
-        mode = st.radio("ชนิดกราฟ", options=["Stacked", "Clustered"], index=0, horizontal=True)
-
-        dplot = df2.reset_index().rename(columns={"index": "เดือน"})
-        fig2 = go.Figure()
-
-        # palette 4 ช่องทาง
-        palette = ["#1d4ed8", "#60a5fa", "#10b981", "#f59e0b"]
-        for i, col in enumerate(df2.columns):
-            fig2.add_bar(x=dplot["เดือน"], y=dplot[col], name=col, marker_color=palette[i % len(palette)])
-
-        # เส้น total + label ยอดรวมบนหัวแท่ง (ช่วยให้เห็นภาพรวม)
-        totals = dplot[df2.columns].sum(axis=1)
-        fig2.add_trace(go.Scatter(
-            x=dplot["เดือน"], y=totals,
-            mode="lines+markers+text", text=[_fmt_baht(v) for v in totals],
-            textposition="top center", name="รวมต่อเดือน",
-            line=dict(color="#111827", width=2), marker=dict(size=6, color="#111827")
-        ))
-
-        fig2.update_layout(barmode="stack" if mode == "Stacked" else "group")
-        _apply_base_layout(fig2, plotly_template)
-        fig2.update_traces(hovertemplate="%{x}<br>%{fullData.name}: ฿%{y:,.0f}<extra></extra>")
-        st.plotly_chart(fig2, use_container_width=True)
-        st.caption("คำอธิบาย: สีแทนแต่ละช่องทาง, ตัวเลขด้านบนคือยอดรวมต่อเดือน")
+        # ----- Right: Channel Structure (Stack/Cluster) + total label แบบกันทับ
+        with colR:
+            st.subheader("โครงสร้างช่องทาง")
+            mode = st.radio("ชนิดกราฟ", options=["Stacked", "Clustered"], index=0, horizontal=True)
+    
+            dplot = df2.reset_index().rename(columns={"index": "เดือน"})
+            months = dplot["เดือน"].tolist()
+    
+            fig2 = go.Figure()
+    
+            # palette 4 ช่องทาง
+            palette = ["#1d4ed8", "#60a5fa", "#10b981", "#f59e0b"]
+            for i, col in enumerate(df2.columns):
+                fig2.add_bar(
+                    x=months, y=dplot[col], name=col, marker_color=palette[i % len(palette)],
+                    hovertemplate="%{x}<br>%{fullData.name}: ฿%{y:,.0f}<extra></extra>"
+                )
+    
+            # เส้น total
+            totals = dplot[df2.columns].sum(axis=1).astype(float)
+    
+            # --- ป้องกันเลขทับ: เลือกความถี่การใส่ตัวเลขแบบอัตโนมัติ ---
+            n = len(months)
+            step = 1
+            if n >= 10: step = 2
+            if n >= 15: step = 3
+            text_labels = [f"฿{v:,.0f}" if (i % step == 0) else "" for i, v in enumerate(totals)]
+    
+            fig2.add_trace(go.Scatter(
+                x=months, y=totals,
+                mode="lines+markers+text",
+                line=dict(color="#111827", width=2),
+                marker=dict(size=6, color="#111827"),
+                text=text_labels, textposition="top center", textfont=dict(size=11),
+                name="รวมต่อเดือน",
+                hovertemplate="%{x}<br>รวม: ฿%{y:,.0f}<extra></extra>",
+                cliponaxis=False  # อย่าตัดข้อความที่เลยแกน
+            ))
+    
+            # เพิ่ม headroom บนแกน Y ป้องกันชนขอบ
+            ymax = float(totals.max()) * 1.15
+            fig2.update_yaxes(range=[0, ymax])
+    
+            fig2.update_layout(barmode="stack" if mode == "Stacked" else "group")
+            _apply_base_layout(fig2, plotly_template)
+            fig2.update_xaxes(tickangle=-30, tickfont=dict(size=11))
+            st.plotly_chart(fig2, use_container_width=True)
+            st.caption("คำอธิบาย: สีแทนแต่ละช่องทาง, ตัวเลขด้านบน (แสดงเว้นช่วงอัตโนมัติ) คือยอดรวมต่อเดือน")
 
 
 # ---------------------- ส่วน Transactions + วงกลม ----------------------
@@ -229,3 +250,4 @@ def render_transactions_and_sources(
             st.plotly_chart(fig_pie, use_container_width=True)
         else:
             st.info("ไม่พบข้อมูลช่องทางของเดือนนี้")
+
