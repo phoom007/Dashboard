@@ -3,6 +3,7 @@
 import streamlit as st
 import traceback
 
+# ---- Local modules ----
 from utils.theme import set_base_page_config, inject_global_css, get_plotly_template
 from utils.data import load_all_data, load_geojson
 from components.sidebar import render_sidebar
@@ -17,63 +18,91 @@ from components.mapbox import render_thailand_map
 
 
 def main():
-    # 0) Base
+    # 0) Base theme & CSS
     set_base_page_config()
     inject_global_css()
 
-    # 1) Data
+    # 1) Load data
+    #    (utils/data.py ต้องคืน 6 ค่า: df1, df2, df3, df1_melted, national_avg, month_cols)
     df1, df2, df3, df1_melted, national_avg, month_cols = load_all_data()
     th_geo = load_geojson()
 
-    # 2) Sidebar (โลโก้ซ้าย / Night Mode ขวา)
-    s = render_sidebar(df1, df2, df3)
-    selected_month     = s["selected_month"]
-    selected_province  = s["selected_province"]
-    channel_filter     = s["channel_filter"]
-    product_filter     = s["product_filter"]
+    # 2) Sidebar (โลโก้ซ้าย / Night Mode ขวา + ตัวกรอง)
+    sidebar_state = render_sidebar(df1, df2, df3)
+    selected_month = sidebar_state["selected_month"]
+    selected_province = sidebar_state["selected_province"]
+    channel_filter = sidebar_state["channel_filter"]
+    product_filter = sidebar_state["product_filter"]
 
-    # 3) Title + Caption (ตามที่กำหนด)
+    # 3) Title + Caption (ตามสเปก)
     st.title("🛍️ Dashboard สรุปผลการจำหน่ายสินค้า OTOP (ชุดเติบโต)")
     st.divider()
     st.caption(
-        f"ข้อมูลประจำเดือน **{selected_month}** • หน่วยเป็นบาท (฿) • แหล่งข้อมูล: "
-        "otop_r04, otop_r05, otop_r06 (ดูท้ายหน้า)"
+        f"ข้อมูลประจำเดือน **{selected_month}** • หน่วยเป็นบาท (฿) • "
+        "แหล่งข้อมูล: otop_r04, otop_r05, otop_r06 (ดูท้ายหน้า)"
     )
 
-    # 4) KPI (สีเดิม/ไอคอนเดิม/เลย์เอาต์เดิม)
+    # 4) KPI (สีเดิม/ไอคอนเดิม/1 แถวบน Desktop, มือถือ 2x2)
     render_kpis(df1, df2, df3, selected_month)
 
-    # 5) Controls (เลื่อน) + กราฟหลัก (ซ้าย–ขวา)
+    # 5) Global controls (เลื่อน) + Main charts (ซ้าย-ขวา)
     render_time_kind_controls(prefix="main")
-    render_main_row_charts(df1, df2, selected_month, plotly_template=get_plotly_template())
+    render_main_row_charts(
+        df1, df2, selected_month,
+        plotly_template=get_plotly_template(),
+        key_prefix="main",
+    )
 
     st.markdown("---")
 
-    # 6) Tabs (ทั้งสองแท็บมี Controls + Revenue Sources + CDD)
+    # 6) Tabs — ทั้งสองแท็บมี Controls + Revenue Sources + CDD Embeds
     tab1, tab2 = st.tabs(["🗺️ ภาพรวมรายจังหวัด", "🔎 วิเคราะห์เชิงลึก"])
 
-        # ในส่วน main (ก่อนแท็บ)
-    render_time_kind_controls(prefix="main")
-    render_main_row_charts(df1, df2, selected_month, plotly_template=get_plotly_template(), key_prefix="main")
-    
-    # ใน tab1
     with tab1:
+        # Controls (มี auto-unique key แล้ว, prefix เฉพาะแท็บ)
         render_time_kind_controls(prefix="tab1")
-        render_thailand_map(df1, df1_melted, th_geo, selected_month, key_prefix="tab1")  # ดูฟังก์ชันด้านล่าง
+
+        # Thailand Map (Mapbox สว่างตลอด)
+        render_thailand_map(
+            df1=df1,
+            df1_melted=df1_melted,
+            th_geojson=th_geo,
+            selected_month=selected_month,
+            key_prefix="tab1",
+        )
+
         st.markdown("---")
-        render_revenue_sources(df2, selected_month, plotly_template=get_plotly_template(), key_prefix="tab1")
+
+        # Revenue Sources (เดือนเดียว)
+        render_revenue_sources(
+            df2=df2,
+            selected_month=selected_month,
+            plotly_template=get_plotly_template(),
+            key_prefix="tab1",
+        )
+
         st.markdown("---")
+
+        # CDD embeds (เลือกหน้า otop_r06/05/04)
         render_cdd_sources_embeds(key_prefix="tab1")
-    
-    # ใน tab2
+
     with tab2:
         render_time_kind_controls(prefix="tab2")
+
+        # (เว้นพื้นที่เพิ่มแผนวิเคราะห์เชิงลึกอื่น ๆ หากต้องการ)
+        # แสดง Revenue Sources + CDD เช่นกัน
         st.markdown("---")
-        render_revenue_sources(df2, selected_month, plotly_template=get_plotly_template(), key_prefix="tab2")
+        render_revenue_sources(
+            df2=df2,
+            selected_month=selected_month,
+            plotly_template=get_plotly_template(),
+            key_prefix="tab2",
+        )
+
         st.markdown("---")
         render_cdd_sources_embeds(key_prefix="tab2")
 
-    # 7) Footer sources
+    # 7) Footer: Data sources
     st.markdown("---")
     st.markdown(
         "แหล่งข้อมูลที่อ้างอิงในแดชบอร์ด:  "
@@ -87,6 +116,10 @@ if __name__ == "__main__":
     try:
         main()
     except Exception:
-        st.set_page_config(page_title="OTOP Sales Dashboard", page_icon="🛍️", layout="wide")
-        st.error("เกิดข้อผิดพลาดในแอป (รายละเอียดด้านล่าง)")
+        # Fallback page config (กรณี error ก่อน set_page_config)
+        try:
+            st.set_page_config(page_title="OTOP Sales Dashboard", page_icon="🛍️", layout="wide")
+        except Exception:
+            pass
+        st.error("เกิดข้อผิดพลาดในแอป (รายละเอียดอยู่ด้านล่าง)")
         st.code(traceback.format_exc())
