@@ -127,17 +127,57 @@ def render_main_row_charts(
 # ------------------------------
 # Revenue Sources (เดือนเดียว)
 # ------------------------------
-def render_revenue_sources(df2: pd.DataFrame, selected_month: str, plotly_template: str = "plotly_white", key_prefix: str = "revsrc"):
-    st.markdown("#### Revenue Sources (เดือนเดียว)")
-    month_key = selected_month.split(" ")[0]
-    idx = next((i for i in df2.index if str(i).startswith(month_key)), None)
-    if idx is None:
-        st.info("ไม่พบข้อมูลสำหรับเดือนนี้", icon="ℹ️")
-        return
-    s = df2.loc[idx]
-    fig = px.pie(values=s.values, names=s.index, hole=.45, template=plotly_template)
-    fig.update_layout(margin=dict(l=0, r=0, b=0, t=0), legend_title_text="")
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False}, key=f"pie_{key_prefix}")
+    def render_revenue_sources(
+        df2,
+        selected_month: str,
+        selected_province: str,
+        plotly_template: str = "plotly_white",
+        key_prefix: str = "revsrc",
+    ):
+        """
+        พายแสดง 'สัดส่วนยอดขายตามช่องทาง' สำหรับ 'เดือนเดียว'
+        - อิงข้อมูล df2 (ระดับประเทศ) -> กรองตาม 'เดือน' ได้จริง
+        - แสดงหัวเรื่อง/คำอธิบายอ้างอิง 'จังหวัดที่เลือก' เพื่อคงบริบทผู้ใช้
+        """
+        st.markdown("### วงกลมสัดส่วนช่องทาง (Revenue Sources — เดือนเดียว)")
+        if selected_month not in df2.index:
+            st.info("ไม่พบข้อมูลช่องทางสำหรับเดือนที่เลือก")
+            return
+    
+        channel_series = df2.loc[selected_month]
+        # สร้าง DataFrame เพื่อควบคุมชื่อ/ลำดับ
+        df_plot = channel_series.reset_index()
+        df_plot.columns = ["ช่องทาง", "ยอดขาย"]
+    
+        fig = px.pie(
+            df_plot,
+            values="ยอดขาย",
+            names="ช่องทาง",
+            hole=0.4,
+            template=plotly_template,
+        )
+        fig.update_traces(
+            textposition="inside",
+            textinfo="percent+label",
+            pull=[0.03, 0, 0, 0]  # เน้นเซ็กเมนต์แรกเล็กน้อย (พอดี ๆ)
+        )
+        fig.update_layout(
+            title=dict(
+                text=f"สัดส่วนยอดขายตามช่องทาง — {selected_month} — จังหวัดที่เลือก: {selected_province}",
+                x=0.5, xanchor="center", y=0.95,
+                font=dict(size=18)
+            ),
+            showlegend=False,
+            margin=dict(t=60, r=10, b=10, l=10),
+        )
+    
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+            config={"displayModeBar": False},
+            key=f"revsrc_{key_prefix}_{selected_month}_{selected_province}"
+        )
+        st.caption("**หมายเหตุ:** ข้อมูลช่องทางเป็นภาพรวมระดับประเทศ (อ้างอิง df2) — ปรับตามเดือนจริง, จังหวัดใช้เพื่อบริบทการอ่าน")
 
 # ------------------------------
 # ฝังหน้าเว็บ CDD (ไม่รองรับ key ใน iframe)
@@ -518,3 +558,4 @@ def render_channel_cumulative_ytd(
         height=420
     )
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False}, key=f"cumch_{key_prefix}")
+
