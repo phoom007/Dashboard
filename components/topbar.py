@@ -1,3 +1,4 @@
+# components/topbar.py (แทนที่ฟังก์ชัน render_topbar ทั้งหมด)
 import streamlit as st
 from datetime import datetime
 
@@ -22,9 +23,12 @@ def render_topbar():
                 st.write("⚙️")
                 st.caption("ตั้งค่า")
             with c4:
-                # Theme toggle (ใช้งานจริง)
-                mode = st.toggle("Dark", value=(st.session_state.theme_mode=="Dark"), label_visibility="collapsed")
-                st.session_state.theme_mode = "Dark" if mode else "Light"
+                # Theme toggle (fallback ถ้าไม่มี st.toggle)
+                if hasattr(st, "toggle"):
+                    mode_on = st.toggle("Dark", value=(st.session_state.theme_mode=="Dark"), label_visibility="collapsed")
+                else:
+                    mode_on = st.checkbox("Dark", value=(st.session_state.theme_mode=="Dark"))
+                st.session_state.theme_mode = "Dark" if mode_on else "Light"
                 st.write("👤")
                 st.caption("โปรไฟล์")
     st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
