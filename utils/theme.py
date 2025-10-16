@@ -35,7 +35,23 @@ def inject_global_css(mode="Light"):
     }}
     </style>
     """
-    st.markdown(base_css, unsafe_allow_html=True)
+        # utils/theme.py (ตัวอย่างใส่เพิ่มในฟังก์ชัน inject_global_css)
+    st.markdown("""
+    <style>
+    /* ปรับมุมโค้ง+เงานุ่มทั่วไป */
+    .block-container { padding-top: 0.8rem; }
+    div[data-testid="stHorizontalBlock"] > div { border-radius: 18px; }
+    .stButton>button, .stDownloadButton>button, .stRadio, .stSelectbox {
+        border-radius: 14px !important;
+    }
+    /* จัดระยะหัวข้อบน */
+    h1,h2,h3 { margin-top: 0.4rem; }
+    
+    /* ปรับ label ของ toggle/checkbox ให้ชิดซ้ายดูสะอาด */
+    label { font-weight: 500; }
+    </style>
+    """, unsafe_allow_html=True)
 
 def get_plotly_template():
     return "plotly_white" if st.session_state.theme_mode=="Light" else "plotly_dark"
+
