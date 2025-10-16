@@ -181,41 +181,26 @@ def load_all_data():
 @st.cache_data
 def load_all_data():
     """
-    คืนค่า 6 รายการตามลำดับ:
-    1) df1: ยอดขายรายจังหวัด (index='จังหวัด')
-    2) df2: รายได้ตามช่องทาง (index='เดือน')
-    3) df3: รายได้ตามประเภทสินค้า (index='เดือน')
-    4) df1_melted: สำหรับแผนที่ (มี 'province_eng')
-    5) national_average: ค่าเฉลี่ยทั้งประเทศรายเดือนของ df1 (Series)
-    6) month_cols: รายชื่อคอลัมน์เดือนของ df1
+    คืนค่า 6 รายการ:
+    df1, df2, df3, df1_melted, national_average, month_cols
     """
-    # อ่านจากสตริง CSV
     df1 = pd.read_csv(io.StringIO(province_data_csv.strip()))
     df2 = pd.read_csv(io.StringIO(channel_data_csv.strip()))
     df3 = pd.read_csv(io.StringIO(product_type_data_csv.strip()))
 
-    # ตรวจคอลัมน์หลัก
-    if "จังหวัด" not in df1.columns:
-        raise ValueError("df1 ต้องมีคอลัมน์ 'จังหวัด'")
-    if "เดือน" not in df2.columns:
-        raise ValueError("df2 ต้องมีคอลัมน์ 'เดือน'")
-    if "เดือน" not in df3.columns:
-        raise ValueError("df3 ต้องมีคอลัมน์ 'เดือน'")
+    if "จังหวัด" not in df1.columns: raise ValueError("df1 ต้องมีคอลัมน์ 'จังหวัด'")
+    if "เดือน"  not in df2.columns: raise ValueError("df2 ต้องมีคอลัมน์ 'เดือน'")
+    if "เดือน"  not in df3.columns: raise ValueError("df3 ต้องมีคอลัมน์ 'เดือน'")
 
-    # ตั้ง index
     df1.set_index("จังหวัด", inplace=True)
     df2.set_index("เดือน", inplace=True)
     df3.set_index("เดือน", inplace=True)
 
-    # รายชื่อคอลัมน์เดือน (ของ df1)
     month_cols = [c for c in df1.columns if ("2566" in c or "2567" in c)]
-    if not month_cols:
-        month_cols = list(df1.columns)
+    if not month_cols: month_cols = list(df1.columns)
 
-    # Melt สำหรับแผนที่
     df1_melted = df1.reset_index().melt(id_vars="จังหวัด", var_name="เดือน", value_name="ยอดขาย")
 
-    # Mapping ไทย->อังกฤษ (เฉพาะจังหวัดที่มีใน GeoJSON)
     province_name_map = {
         'กรุงเทพมหานคร': 'Bangkok', 'สมุทรปราการ': 'Samut Prakan', 'นนทบุรี': 'Nonthaburi', 'ปทุมธานี': 'Pathum Thani',
         'พระนครศรีอยุธยา': 'Phra Nakhon Si Ayutthaya', 'อ่างทอง': 'Ang Thong', 'ลพบุรี': 'Lopburi', 'สิงห์บุรี': 'Sing Buri',
@@ -239,17 +224,13 @@ def load_all_data():
     }
     df1_melted["province_eng"] = df1_melted["จังหวัด"].map(province_name_map)
 
-    # ค่าเฉลี่ยประเทศรายเดือน (Series)
     national_average = df1[month_cols].mean()
 
-    # >>> รีเทิร์นครบ 6 ค่า <<<
     return df1, df2, df3, df1_melted, national_average, month_cols
+
 
 @st.cache_data
 def load_geojson():
-    """
-    โหลด GeoJSON แผนที่ประเทศไทย (ระดับจังหวัด)
-    """
     url = "https://raw.githubusercontent.com/apisit/thailand.json/master/thailand.json"
     try:
         with urllib.request.urlopen(url) as r:
@@ -269,6 +250,7 @@ def _extract_month_cols():
     return cols
 
 month_cols = _extract_month_cols()
+
 
 
 
