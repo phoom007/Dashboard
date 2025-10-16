@@ -52,21 +52,26 @@ def main():
     # 6) Tabs (ทั้งสองแท็บมี Controls + Revenue Sources + CDD)
     tab1, tab2 = st.tabs(["🗺️ ภาพรวมรายจังหวัด", "🔎 วิเคราะห์เชิงลึก"])
 
+        # ในส่วน main (ก่อนแท็บ)
+    render_time_kind_controls(prefix="main")
+    render_main_row_charts(df1, df2, selected_month, plotly_template=get_plotly_template(), key_prefix="main")
+    
+    # ใน tab1
     with tab1:
         render_time_kind_controls(prefix="tab1")
-        render_thailand_map(df1, df1_melted, th_geo, selected_month)
+        render_thailand_map(df1, df1_melted, th_geo, selected_month, key_prefix="tab1")  # ดูฟังก์ชันด้านล่าง
         st.markdown("---")
-        render_revenue_sources(df2, selected_month, plotly_template=get_plotly_template())
+        render_revenue_sources(df2, selected_month, plotly_template=get_plotly_template(), key_prefix="tab1")
         st.markdown("---")
-        render_cdd_sources_embeds()
-
+        render_cdd_sources_embeds(key_prefix="tab1")
+    
+    # ใน tab2
     with tab2:
         render_time_kind_controls(prefix="tab2")
-        # (พื้นที่สำหรับกราฟวิเคราะห์เชิงลึกอื่น ๆ ของคุณ ถ้าต้องการเพิ่มในอนาคต)
         st.markdown("---")
-        render_revenue_sources(df2, selected_month, plotly_template=get_plotly_template())
+        render_revenue_sources(df2, selected_month, plotly_template=get_plotly_template(), key_prefix="tab2")
         st.markdown("---")
-        render_cdd_sources_embeds()
+        render_cdd_sources_embeds(key_prefix="tab2")
 
     # 7) Footer sources
     st.markdown("---")
