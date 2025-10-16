@@ -245,6 +245,20 @@ def load_all_data():
     # >>> รีเทิร์นครบ 6 ค่า <<<
     return df1, df2, df3, df1_melted, national_average, month_cols
 
+@st.cache_data
+def load_geojson():
+    """
+    โหลด GeoJSON แผนที่ประเทศไทย (ระดับจังหวัด)
+    """
+    url = "https://raw.githubusercontent.com/apisit/thailand.json/master/thailand.json"
+    try:
+        with urllib.request.urlopen(url) as r:
+            th_geo = json.load(r)
+        return th_geo
+    except Exception as e:
+        st.warning(f"โหลด GeoJSON ไม่สำเร็จ: {e}")
+        return None
+
 # =============================================================================
 # 4) Utilities: month_cols ให้โมดูลอื่นเรียกใช้
 # =============================================================================
@@ -255,6 +269,7 @@ def _extract_month_cols():
     return cols
 
 month_cols = _extract_month_cols()
+
 
 
 
