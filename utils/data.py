@@ -1,5 +1,4 @@
-# utils/data.py
-# -*- coding: utf-8 -*-
+# utils/data.py (เฉพาะฟังก์ชันนี้พอ)
 import io
 import json
 import urllib.request
@@ -256,5 +255,6 @@ def _extract_month_cols():
     return cols
 
 month_cols = _extract_month_cols()
+
 
 
