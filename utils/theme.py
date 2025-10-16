@@ -1,3 +1,14 @@
+import streamlit as st
+
+def set_base_page_config():
+    """ตั้งค่า page config พื้นฐาน เช่น ชื่อหน้า, ไอคอน, layout"""
+    st.set_page_config(
+        page_title="OTOP Dashboard",
+        page_icon="🛍️",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+
 def inject_global_css():
     st.markdown("""
     <style>
@@ -63,3 +74,4 @@ def inject_global_css():
       if (root) root.classList.toggle('night', {str(night).lower()});
     </script>
     """, unsafe_allow_html=True)
+
