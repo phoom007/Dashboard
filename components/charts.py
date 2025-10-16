@@ -35,22 +35,48 @@ def _apply_base_layout(fig, template="plotly_white"):
 def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_white"):
     colL, colR = st.columns([3, 2])
 
-    # ----- Left: Revenue Trend (ALL/1M/6M/1Y) + highlight เดือนที่เลือก
-    with colL:
-        st.subheader("แนวโน้มรายได้ (Revenue)")
-        timewin = st.radio("ช่วงเวลา", options=["ALL", "1M", "6M", "1Y"], index=0, horizontal=True)
-
-        # รวมยอดขายทุกจังหวัดรายเดือน
-        series = df1.sum(axis=0)
-        months_all = list(series.index)
-
-        def subset(win):
-            if win == "ALL": return months_all, series.values
-            if win == "1M":  return months_all[-1:], series.iloc[-1:].values
-            if win == "6M":  return months_all[-6:], series.iloc[-6:].values
-            if win == "1Y":  return months_all[-12:], series.iloc[-12:].values
-
-        xs, ys = subset(timewin)
+    # ====== ซ้าย: แหล่งข้อมูลที่ใช้สร้าง Dashboard (ฝังหน้าเว็บ CDD) ======
+    with col1:
+        st.markdown("#### แหล่งข้อมูลที่ใช้สร้าง Dashboard (ฝังจาก CDD)")
+        # ดึงปี พ.ศ. จากเดือนที่เลือก (เช่น 'กันยายน 2567') ถ้าแยกไม่ได้ให้ fallback = 2567
+        try:
+            th_year = int(str(selected_month).split()[-1])
+        except Exception:
+            th_year = 2567
+    
+        url_r06 = f"https://logi.cdd.go.th/otop/cdd_report/otop_r06.php?year={th_year}"
+        url_r05 = f"https://logi.cdd.go.th/otop/cdd_report/otop_r05.php?year={th_year}"
+        url_r04 = f"https://logi.cdd.go.th/otop/cdd_report/otop_r04.php?year={th_year}&org_group=0"
+    
+        st.caption(
+            "หน้านี้แสดง **3 รายงานต้นทาง** ที่ใช้ประกอบการคำนวณในแดชบอร์ดชุดนี้ "
+            "(r06: ช่องทาง, r05: ประเภทสินค้า, r04: รายจังหวัด)"
+        )
+    
+        t1, t2, t3 = st.tabs([f"r06 (ช่องทาง) • {th_year}", f"r05 (ประเภทสินค้า) • {th_year}", f"r04 (รายจังหวัด) • {th_year}"])
+        import streamlit.components.v1 as components
+    
+        with t1:
+            try:
+                components.iframe(url_r06, height=900, scrolling=True)
+            except Exception:
+                st.warning("ไม่สามารถฝังหน้าเว็บ r06 ได้")
+            st.link_button("เปิด r06 ในแท็บใหม่", url_r06)
+    
+        with t2:
+            try:
+                components.iframe(url_r05, height=900, scrolling=True)
+            except Exception:
+                st.warning("ไม่สามารถฝังหน้าเว็บ r05 ได้")
+            st.link_button("เปิด r05 ในแท็บใหม่", url_r05)
+    
+        with t3:
+            try:
+                components.iframe(url_r04, height=900, scrolling=True)
+            except Exception:
+                st.warning("ไม่สามารถฝังหน้าเว็บ r04 ได้")
+            st.link_button("เปิด r04 ในแท็บใหม่", url_r04)
+    
 
         # เส้นหลัก + เส้นค่าเฉลี่ยเคลื่อนที่ (MA3)
         fig = go.Figure()
@@ -250,4 +276,5 @@ def render_transactions_and_sources(
             st.plotly_chart(fig_pie, use_container_width=True)
         else:
             st.info("ไม่พบข้อมูลช่องทางของเดือนนี้")
+
 
