@@ -75,3 +75,7 @@ def inject_global_css():
     </script>
     """, unsafe_allow_html=True)
 
+def get_plotly_template():
+    # template กราฟให้ใช้ plotly_white ตลอด
+    return "plotly_white"
+
