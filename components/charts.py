@@ -4,11 +4,24 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 
+def _unique_suffix(prefix: str) -> str:
+    """คืน suffix ไม่ซ้ำสำหรับ prefix นั้นๆ ในหนึ่งรอบ render"""
+    if "_ctrl_counts" not in st.session_state:
+        st.session_state._ctrl_counts = {}
+    cnt = st.session_state._ctrl_counts.get(prefix, 0) + 1
+    st.session_state._ctrl_counts[prefix] = cnt
+    return f"{prefix}_{cnt}"
+
 def render_time_kind_controls(prefix="main"):
+    """ตัวเลือกแบบเลื่อนสำหรับช่วงเวลาและชนิดกราฟ (auto-unique key)"""
+    # state หลักของค่าที่เลือก (ค่านี้คงอยู่ข้ามคีย์ของ widget)
     if "time_range" not in st.session_state:
         st.session_state.time_range = "ALL"
     if "bar_kind" not in st.session_state:
         st.session_state.bar_kind = "Stacked"
+
+    # ป้องกัน key ซ้ำโดยเพิ่ม suffix ที่ไม่ซ้ำต่อการเรียก
+    suffix = _unique_suffix(prefix)
 
     c1, c2 = st.columns([1, 1], gap="small")
     with c1:
@@ -17,7 +30,7 @@ def render_time_kind_controls(prefix="main"):
             label="",
             options=["ALL", "1M", "6M", "1Y"],
             value=st.session_state.time_range,
-            key=f"time_range_slider_{prefix}",
+            key=f"time_range_slider_{suffix}",  # <-- ไม่ซ้ำแล้ว
         )
     with c2:
         st.caption("ชนิดกราฟ")
@@ -25,7 +38,7 @@ def render_time_kind_controls(prefix="main"):
             label="",
             options=["Stacked", "Clustered"],
             value=st.session_state.bar_kind,
-            key=f"bar_kind_slider_{prefix}",
+            key=f"bar_kind_slider_{suffix}",    # <-- ไม่ซ้ำแล้ว
         )
 
 def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_white", key_prefix="main"):
@@ -85,4 +98,4 @@ def render_cdd_sources_embeds(key_prefix="cdd"):
         format_func=lambda k: k.upper(),
         key=f"cdd_select_{key_prefix}",
     )
-    st.components.v1.iframe(url_map[key], height=420, scrolling=True)
+    st.components.v1.iframe(url_map[key], height=420, scrolling=True, key=f"cdd_iframe_{key_prefix}")
