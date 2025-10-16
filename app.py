@@ -1,55 +1,45 @@
-# app.py
-# -*- coding: utf-8 -*-
+# app.py (เฉพาะส่วนที่เปลี่ยน)
 import streamlit as st
 import traceback
 
 def main():
     from utils.theme import set_base_page_config, inject_global_css, get_plotly_template
     from utils.data import load_all_data, load_geojson
-    from components.header import render_header
+    # from components.header import render_header        # <- ไม่ใช้แล้ว
     from components.sidebar import render_sidebar
     from components.kpi_card import render_kpis
     from components.charts import render_main_row_charts, render_transactions_and_sources
     from components.mapbox import render_thailand_map
 
-    # 0) Page setup (พื้นหลังขาวตลอด)
     set_base_page_config()
-    inject_global_css()                     # <<< ไม่มีพารามิเตอร์แล้ว
+    inject_global_css()
 
-    # 1) Header: Day/Night toggle (เก็บไว้ใน session_state.display_mode)
-    render_header()
-
-    # 2) Data
+    # ---- Sidebar (มี Day/Night toggle ด้วย) ----
     df1, df2, df3, df1_melted, national_avg = load_all_data()
     th_geo = load_geojson()
-
-    # 3) Sidebar filters
     sidebar_state = render_sidebar(df1, df2, df3)
     selected_month = sidebar_state["selected_month"]
     selected_province = sidebar_state["selected_province"]
     channel_filter = sidebar_state["channel_filter"]
     product_filter = sidebar_state["product_filter"]
 
-    # 4) Title
+    # ---- หัวเรื่อง → เส้นคั่น → บรรทัดข้อมูล ----
     st.title("🛍️ Dashboard สรุปผลการจำหน่ายสินค้า OTOP (ชุดเติบโต)")
+    st.markdown("---")
     st.caption(
-        f"ข้อมูลประจำเดือน **{selected_month}** • หน่วยเป็นบาท (฿) • แหล่งข้อมูล: "
-        "otop_r04, otop_r05, otop_r06 (ดูท้ายหน้า)"
+        f"ข้อมูลประจำเดือน **{selected_month}** • หน่วยเป็นบาท (฿) • "
+        "แหล่งข้อมูล: otop_r04, otop_r05, otop_r06 (ดูท้ายหน้า)"
     )
 
-    # 5) KPI
+    # ---- KPI + Charts ----
     render_kpis(df1, df2, df3, selected_month)
     st.markdown("")
-
-    # 6) Main charts (plotly_white เสมอ)
     render_main_row_charts(df1, df2, selected_month, plotly_template=get_plotly_template())
 
     st.markdown("---")
-
-    # 7) Tabs
     tab1, tab2 = st.tabs(["🗺️ ภาพรวมรายจังหวัด", "🔎 วิเคราะห์เชิงลึก"])
     with tab1:
-        render_thailand_map(df1, df1_melted, th_geo, selected_month)  # <<< ไม่ส่ง theme_mode แล้ว
+        render_thailand_map(df1, df1_melted, th_geo, selected_month)
     with tab2:
         render_transactions_and_sources(
             df1, df2, df3, selected_month, selected_province,
@@ -57,7 +47,6 @@ def main():
             plotly_template=get_plotly_template()
         )
 
-    # 8) Data sources
     st.markdown("---")
     st.markdown(
         "แหล่งข้อมูลที่อ้างอิงในแดชบอร์ด:  "
