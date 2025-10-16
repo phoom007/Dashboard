@@ -11,20 +11,17 @@ def _month_cols(df1: pd.DataFrame):
 
 def render_sidebar(df1: pd.DataFrame, df2: pd.DataFrame, df3: pd.DataFrame):
     with st.sidebar:
-        # แถวบนสุด: โลโก้ซ้าย / Night toggle ขวา
-        col_logo, col_toggle = st.columns([1, 1])
-        with col_logo:
+        c_logo, c_toggle = st.columns([1, 1])
+        with c_logo:
             st.image(LOGO_URL, width=54)
-        with col_toggle:
+        with c_toggle:
             if "display_mode" not in st.session_state:
                 st.session_state.display_mode = "Day"
-            night_on = st.toggle("Night 🌙", value=(st.session_state.display_mode == "Night"), key="night_toggle")
-            st.session_state.display_mode = "Night" if night_on else "Day"
+            night = st.toggle("Night Mode", value=(st.session_state.display_mode == "Night"), key="night_toggle")
+            st.session_state.display_mode = "Night" if night else "Day"
 
-        # ชื่อบล็อก
         st.markdown("### การแสดงผลและตัวกรอง")
 
-        # ตัวกรองหลัก
         months = _month_cols(df1)
         sel_month = st.selectbox("เลือกเดือน", options=months, index=len(months) - 1)
 
@@ -36,14 +33,14 @@ def render_sidebar(df1: pd.DataFrame, df2: pd.DataFrame, df3: pd.DataFrame):
 
         ch_cols = list(df2.columns)
         sel_channels = st.multiselect(
-            "กรองตามช่องทาง (ถ้าไม่ช้าง = ทั้งหมด)",
+            "กรองตามช่องทาง (ถ้าไม่เลือก = ทั้งหมด)",
             options=ch_cols,
             default=ch_cols,
         )
 
         p_cols = list(df3.columns)
         sel_products = st.multiselect(
-            "กรองตามประเภทสินค้า (ถ้าไม่ช้าง = ทั้งหมด)",
+            "กรองตามประเภทสินค้า (ถ้าไม่เลือก = ทั้งหมด)",
             options=p_cols,
             default=p_cols,
         )
