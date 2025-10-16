@@ -1,8 +1,10 @@
+# components/charts.py (แทนที่บล็อกฟังก์ชันทั้งไฟล์เดิมได้เลย)
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from utils.formatters import fmt_baht
+import random
 
 def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_white"):
     colL, colR = st.columns([3,2])
@@ -10,7 +12,7 @@ def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_whi
     # ----- Left: Revenue Trend (ALL/1M/6M/1Y)
     with colL:
         st.subheader("แนวโน้มรายได้ (Revenue)")
-        timewin = st.segmented_control("ช่วงเวลา", options=["ALL","1M","6M","1Y"], default="ALL")
+        timewin = st.radio("ช่วงเวลา", options=["ALL","1M","6M","1Y"], index=0, horizontal=True)
         series = df1.sum(axis=0)  # รวมทุกจังหวัดรายเดือน
         months = series.index.tolist()
 
@@ -35,20 +37,16 @@ def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_whi
     # ----- Right: Channel Structure (toggle)
     with colR:
         st.subheader("โครงสร้างช่องทาง")
-        chart_mode = st.segmented_control("ชนิดกราฟ", options=["Stacked","Clustered"], default="Stacked")
-        # เตรียมข้อมูลต่อเดือน
+        chart_mode = st.radio("ชนิดกราฟ", options=["Stacked","Clustered"], index=0, horizontal=True)
         df2_plot = df2.reset_index().rename(columns={"index":"เดือน"})
         fig2 = px.bar(df2_plot, x="เดือน", y=df2.columns, template=plotly_template)
-        if chart_mode == "Stacked":
-            fig2.update_layout(barmode="stack", height=380, legend_title="ช่องทาง")
-        else:
-            fig2.update_layout(barmode="group", height=380, legend_title="ช่องทาง")
+        fig2.update_layout(barmode="stack" if chart_mode=="Stacked" else "group",
+                           height=380, legend_title="ช่องทาง")
         fig2.update_xaxes(tickangle=-45)
         st.plotly_chart(fig2, use_container_width=True)
         st.caption("คำอธิบาย: แท่งแสดงมูลค่าตามช่องทางขายในแต่ละเดือน จะซ้อนหรือวางคู่กันได้จากสวิตช์ด้านบน")
 
 def _fake_transactions(df1, df2, df3, selected_month, n=12):
-    import numpy as np, random, datetime as dt
     provinces = df1.index.tolist()
     channels = df2.columns.tolist()
     cats = df3.columns.tolist()
@@ -60,7 +58,8 @@ def _fake_transactions(df1, df2, df3, selected_month, n=12):
         k = random.choice(cats)
         amt = abs(float(df1.loc[p, selected_month])) * random.uniform(0.001, 0.01)
         day = random.randint(1, 28)
-        ts = dt.datetime.strptime("15-{}-2024".format(day), "%d-{}-%Y".format(day)).replace(day=day)
+        # ใช้สตริง timestamp แบบง่ายเพื่อกัน parse พัง
+        ts = f"{day:02d} {selected_month}, 10:{random.randint(10,59):02d} น."
         status = random.choices(["Success","Cancelled","Pending"], weights=[0.75,0.1,0.15])[0]
         records.append({
             "Name": random.choice(["Adam M","Alexa Newsome","Shelly Dorey","Anucha P.","Kanya T."]),
@@ -68,13 +67,11 @@ def _fake_transactions(df1, df2, df3, selected_month, n=12):
             "Channel": c,
             "Province": p,
             "Category": k,
-            "Amount (฿)": amt,
-            "Timestamp": ts.strftime("%d %b %Y, %H:%M"),
+            "Amount (฿)": fmt_baht(amt, no_prefix=True),
+            "Timestamp": ts,
             "Status": status
         })
-    df = pd.DataFrame(records)
-    df["Amount (฿)"] = df["Amount (฿)"].apply(lambda v: fmt_baht(v, no_prefix=True))
-    return df
+    return pd.DataFrame(records)
 
 def render_transactions_and_sources(df1, df2, df3, selected_month, selected_province,
                                     channel_filter, product_filter, national_avg,
