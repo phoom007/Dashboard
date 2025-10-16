@@ -212,3 +212,5 @@ def load_geojson():
     except Exception as e:
         st.warning(f"โหลด GeoJSON ไม่สำเร็จ: {e}")
         return None
+if __name__ == "__main__":
+    main()
