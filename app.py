@@ -11,10 +11,11 @@ def main():
     from components.mapbox import render_thailand_map
 
     set_base_page_config()
-    inject_global_css()             # <-- ไม่มีพารามิเตอร์แล้ว
-    render_header()
+    # if "theme_mode" not in st.session_state:
+    #     st.session_state.theme_mode = "Light"
+    inject_global_css()
     
-    template = get_plotly_template()
+    render_thailand_map(df1, df1_melted, th_geo, selected_month)
 
     # โหลดข้อมูล (ส่วนนี้ถ้าพัง เราจะจับด้านล่าง)
     df1, df2, df3, df1_melted, national_avg = load_all_data()
