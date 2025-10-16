@@ -76,15 +76,19 @@ def render_kpis(df1: pd.DataFrame, df2: pd.DataFrame, df3: pd.DataFrame, selecte
             "icon": "📈",
             "value": f"{mom:,.2f}%",
             "title": "การเติบโต MoM",
-            "sub": f"จังหวัดเติบโตเร็วสุด: {fastest_name} ({fastest_rate:,.2f}%)" if fastest_name!="-" else "เปรียบเทียบกับเดือนก่อนหน้า",
+            "sub": (
+                f"จังหวัดเติบโตเร็วสุด: {fastest_name} ({fastest_rate:,.2f}%)"
+                if fastest_name != "-" else "เปรียบเทียบกับเดือนก่อนหน้า"
+            ),
             "pill": {"text": f"{arrow} {mom:,.2f}%", "cls": pill_cls},
         },
     ]
 
-    st.markdown('<div class="kpi-row">', unsafe_allow_html=True)
+    # ---------- สำคัญ: สร้าง HTML ทั้ง 4 ใบในครั้งเดียว ----------
+    cards_html = []
     for c in cards:
         pill_html = f'<div class="{c["pill"]["cls"]}">{c["pill"]["text"]}</div>' if c.get("pill") else ""
-        st.markdown(f"""
+        cards_html.append(f"""
           <div class="{c['cls']}">
             {pill_html}
             <div class="kpi-top">
@@ -96,6 +100,7 @@ def render_kpis(df1: pd.DataFrame, df2: pd.DataFrame, df3: pd.DataFrame, selecte
             </div>
             <div class="kpi-sub">{c['sub']}</div>
           </div>
-        """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        """)
 
+    html = '<div class="kpi-row">' + "".join(cards_html) + '</div>'
+    st.markdown(html, unsafe_allow_html=True)
