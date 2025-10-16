@@ -17,6 +17,49 @@ from components.charts import (
     render_regional_growth,
     render_product_category_performance,
 )
+    # ---- NEW: 4 charts responsive to month & province ----
+    st.markdown("---")
+    st.subheader("มุมมองเพิ่มเติม (ปรับตามเดือน/จังหวัดที่เลือก)")
+
+    # แถวที่ 1
+    c1, c2 = st.columns(2, gap="large")
+    with c1:
+        render_province_vs_avg_trend(
+            df1=df1,
+            month_cols=month_cols,
+            selected_province=selected_province,
+            plotly_template=get_plotly_template(),
+            key_prefix="extra_row1_left",
+        )
+    with c2:
+        render_mom_change_by_province(
+            df1=df1,
+            month_cols=month_cols,
+            selected_month=selected_month,
+            selected_province=selected_province,
+            plotly_template=get_plotly_template(),
+            key_prefix="extra_row1_right",
+        )
+
+    # แถวที่ 2
+    c3, c4 = st.columns(2, gap="large")
+    with c3:
+        render_monthly_heatmap_selected(
+            df1=df1,
+            month_cols=month_cols,
+            selected_month=selected_month,
+            selected_province=selected_province,
+            plotly_template=get_plotly_template(),
+            key_prefix="extra_row2_left",
+        )
+    with c4:
+        render_channel_cumulative_ytd(
+            df2=df2,
+            month_cols=month_cols,
+            selected_month=selected_month,
+            plotly_template=get_plotly_template(),
+            key_prefix="extra_row2_right",
+        )
 
 # ============== App ==============
 def main():
