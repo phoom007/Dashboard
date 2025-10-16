@@ -4,43 +4,37 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 
-# ---------- ตัวเลือกแบบเลื่อน (ใช้คีย์กลาง เพื่อให้แท็บไหนปรับก็มีผลกับกราฟหลัก) ----------
 def render_time_kind_controls(prefix="main"):
-    """ตัวเลือกแบบเลื่อนสำหรับช่วงเวลาและชนิดกราฟ
-       prefix ใช้กัน key ซ้ำ"""
+    """ตัวเลือกแบบเลื่อนสำหรับช่วงเวลาและชนิดกราฟ (ใช้ prefix กัน key ซ้ำ)"""
     if "time_range" not in st.session_state:
         st.session_state.time_range = "ALL"
     if "bar_kind" not in st.session_state:
         st.session_state.bar_kind = "Stacked"
 
-    colA, colB = st.columns([1, 1], gap="small")
-    with colA:
+    c1, c2 = st.columns([1, 1], gap="small")
+    with c1:
         st.caption("ช่วงเวลา")
         st.session_state.time_range = st.select_slider(
             label="",
             options=["ALL", "1M", "6M", "1Y"],
             value=st.session_state.time_range,
-            key=f"time_range_slider_{prefix}",   # ใช้ prefix กันชนกัน
+            key=f"time_range_slider_{prefix}",
         )
-    with colB:
+    with c2:
         st.caption("ชนิดกราฟ")
         st.session_state.bar_kind = st.select_slider(
             label="",
             options=["Stacked", "Clustered"],
             value=st.session_state.bar_kind,
-            key=f"bar_kind_slider_{prefix}",     # ใช้ prefix กันชนกัน
+            key=f"bar_kind_slider_{prefix}",
         )
 
-# ---------- กราฟหลัก (จำนวนเท่าเดิม) ----------
 def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_white"):
-    # อ่านตัวเลือกจาก session_state
     tail_map = {"ALL": len(df2), "1M": 1, "6M": 6, "1Y": 12}
     n_tail = tail_map.get(st.session_state.get("time_range", "ALL"), len(df2))
     barmode = "stack" if st.session_state.get("bar_kind", "Stacked") == "Stacked" else "group"
 
-    # ตัวอย่าง: ใช้ df2 ทั้งตาราง ทำกราฟช่องทาง (ตามเวอร์ชันเดิมของคุณ)
-    data = df2.reset_index()
-    data = data.tail(n_tail)
+    data = df2.reset_index().tail(n_tail)
     long_df = data.melt(id_vars="เดือน", var_name="ช่องทาง", value_name="value")
 
     left, right = st.columns([3, 2], gap="large")
@@ -56,7 +50,6 @@ def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_whi
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
     with right:
-        # Top 20 จังหวัดเดือนเดียว (ของเดิม)
         st.subheader(f"20 จังหวัดยอดขายสูงสุด ({selected_month})")
         monthly_data = df1[[selected_month]].sort_values(by=selected_month, ascending=False).reset_index()
         bar = px.bar(
@@ -68,7 +61,6 @@ def render_main_row_charts(df1, df2, selected_month, plotly_template="plotly_whi
         bar.update_layout(yaxis={'categoryorder': 'total ascending'}, margin=dict(l=0, r=0, b=0, t=10))
         st.plotly_chart(bar, use_container_width=True, config={"displayModeBar": False})
 
-# ---------- Revenue Sources (เดือนเดียว) ----------
 def render_revenue_sources(df2, selected_month, plotly_template="plotly_white"):
     st.markdown("#### Revenue Sources (เดือนเดียว)")
     month_key = selected_month.split(" ")[0]
@@ -81,7 +73,6 @@ def render_revenue_sources(df2, selected_month, plotly_template="plotly_white"):
     fig.update_layout(margin=dict(l=0, r=0, b=0, t=0), legend_title_text="")
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
-# ---------- ฝังหน้า CDD (เลือกหน้าได้ 1 จาก 3) ----------
 def render_cdd_sources_embeds():
     st.markdown("#### แหล่งข้อมูลที่ใช้สร้าง Dashboard (ฝังจาก CDD)")
     url_map = {
@@ -91,4 +82,3 @@ def render_cdd_sources_embeds():
     }
     key = st.selectbox("เลือกหน้า", options=list(url_map.keys()), format_func=lambda k: k.upper())
     st.components.v1.iframe(url_map[key], height=420)
-
