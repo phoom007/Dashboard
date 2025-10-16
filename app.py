@@ -17,36 +17,34 @@ from components.charts import (
 
 
 def main():
-    # 0) Page/theme
+    # Theme & page
     set_base_page_config()
     inject_global_css()
 
-    # 1) Header: Night/Day toggle (เก็บใน st.session_state.display_mode)
+    # Header Night/Day toggle
     render_header()
 
-    # 2) Data
+    # Data
     df1, df2, df3, df1_melted, national_avg, month_cols = load_all_data()
     th_geo = load_geojson()
 
-    # 3) Sidebar
+    # Sidebar
     sb = render_sidebar(df1, df2, df3)
     selected_month = sb["selected_month"]
     selected_province = sb["selected_province"]
-    channel_filter = sb.get("channel_filter")
-    product_filter = sb.get("product_filter")
 
-    # 4) Title
+    # Title
     st.title("🛍️ Dashboard สรุปผลการจำหน่ายสินค้า OTOP (ชุดเติบโต)")
     st.caption(
         f"ข้อมูลประจำเดือน **{selected_month}** • หน่วยเป็นบาท (฿) • "
         "แหล่งข้อมูล: otop_r04, otop_r05, otop_r06 (ดูท้ายหน้า)"
     )
 
-    # 5) KPI Cards
+    # KPI
     render_kpis(df1, df2, df3, selected_month)
     st.markdown("")
 
-    # 6) Charts แถวแรก (ตัวอย่างย่อ — มีของเดิมใช้ต่อได้)
+    # Main charts (ย่อ)
     try:
         render_main_row_charts(
             df1, df2, selected_month,
@@ -56,27 +54,24 @@ def main():
             key_prefix="main",
         )
     except TypeError:
-        # รองรับซิกเนเจอร์เดิม
+        # เผื่อซิกเนเจอร์เดิมในโปรเจกต์อื่น
         render_main_row_charts(df1, df2, selected_month, plotly_template=get_plotly_template())
 
     st.markdown("---")
 
-    # 7) Tabs
+    # Tabs
     tab1, tab2 = st.tabs(["🗺️ ภาพรวมรายจังหวัด", "🔎 วิเคราะห์เชิงลึก"])
 
     with tab1:
-        # แผนที่ (พยายามเรียกให้ตรงซิกเนเจอร์เดิม)
+        # Map — รองรับทั้งชื่อพารามิเตอร์ใหม่/เก่า
         try:
             render_thailand_map(df1, df1_melted, th_geo, selected_month)
         except TypeError:
-            # บางโปรเจกต์ตั้งชื่อพารามิเตอร์ต่างกัน
             render_thailand_map(
-                df1=df1, df1_melted=df1_melted,
-                thailand_geojson=th_geo,  # ถ้าฟังก์ชันรองรับ
-                selected_month=selected_month
+                df1=df1, df1_melted=df1_melted, thailand_geojson=th_geo, selected_month=selected_month
             )
 
-        # Revenue Sources (เดือนเดียว) — ทั้ง 2 แท็บ
+        # Revenue Sources (เดือนเดียว) — แสดงในทั้ง 2 แท็บ
         render_revenue_sources(
             df2,
             selected_month=selected_month,
@@ -85,11 +80,10 @@ def main():
             key_prefix="tab1",
         )
 
-        # แหล่งข้อมูล CDD
         render_cdd_sources_embeds(key_prefix="tab1")
 
     with tab2:
-        # (คุณสามารถวางกราฟเชิงลึกอื่น ๆ ได้ที่นี่)
+        # กราฟ/วิเคราะห์อื่น ๆ สามารถเพิ่มต่อได้
         render_revenue_sources(
             df2,
             selected_month=selected_month,
@@ -99,7 +93,7 @@ def main():
         )
         render_cdd_sources_embeds(key_prefix="tab2")
 
-    # 8) ลิงก์แหล่งข้อมูลด้านล่าง
+    # แหล่งข้อมูลด้านล่าง
     st.markdown("---")
     st.markdown(
         "แหล่งข้อมูลที่อ้างอิงในแดชบอร์ด:  "
