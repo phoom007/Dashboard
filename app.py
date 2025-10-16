@@ -74,12 +74,7 @@ def main() -> None:
     # 6.1 Tab 1 — แผนที่ + Revenue Sources + CDD
     with tab1:
         # แผนที่ประเทศไทย (Mapbox โทนสว่างเสมอ)
-        render_thailand_map(
-            df1=df1,
-            df1_melted=df1_melted,
-            thailand_geojson=th_geo,
-            selected_month=selected_month
-        )
+        render_thailand_map(df1, df1_melted, th_geo, selected_month)
 
         st.markdown("---")
         # Revenue Sources (เดือนเดียว)
