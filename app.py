@@ -1,11 +1,10 @@
-# app.py (ยกทั้งไฟล์)
 import streamlit as st
 import traceback
 
 def main():
     from utils.theme import set_base_page_config, inject_global_css, get_plotly_template
     from utils.data import load_all_data, load_geojson
-    from components.topbar import render_topbar
+    from components.header import render_header            # <-- เพิ่มบรรทัดนี้
     from components.sidebar import render_sidebar
     from components.kpi_card import render_kpis
     from components.charts import render_main_row_charts, render_transactions_and_sources
@@ -16,7 +15,8 @@ def main():
         st.session_state.theme_mode = "Light"
     inject_global_css(st.session_state.theme_mode)
 
-    render_topbar()
+    # render_topbar()   # <-- ลบออก
+    render_header()      # <-- ใช้ header ใหม่แทน
 
     # โหลดข้อมูล (ส่วนนี้ถ้าพัง เราจะจับด้านล่าง)
     df1, df2, df3, df1_melted, national_avg = load_all_data()
