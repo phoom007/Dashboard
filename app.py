@@ -1,50 +1,55 @@
+# app.py
+# -*- coding: utf-8 -*-
 import streamlit as st
 import traceback
 
 def main():
     from utils.theme import set_base_page_config, inject_global_css, get_plotly_template
     from utils.data import load_all_data, load_geojson
-    from components.header import render_header            # <-- เพิ่มบรรทัดนี้
+    from components.header import render_header
     from components.sidebar import render_sidebar
     from components.kpi_card import render_kpis
     from components.charts import render_main_row_charts, render_transactions_and_sources
     from components.mapbox import render_thailand_map
 
+    # 0) Page setup (พื้นหลังขาวตลอด)
     set_base_page_config()
-    # if "theme_mode" not in st.session_state:
-    #     st.session_state.theme_mode = "Light"
-    inject_global_css()
-    
-    render_thailand_map(df1, df1_melted, th_geo, selected_month)
+    inject_global_css()                     # <<< ไม่มีพารามิเตอร์แล้ว
 
-    # โหลดข้อมูล (ส่วนนี้ถ้าพัง เราจะจับด้านล่าง)
+    # 1) Header: Day/Night toggle (เก็บไว้ใน session_state.display_mode)
+    render_header()
+
+    # 2) Data
     df1, df2, df3, df1_melted, national_avg = load_all_data()
     th_geo = load_geojson()
 
+    # 3) Sidebar filters
     sidebar_state = render_sidebar(df1, df2, df3)
     selected_month = sidebar_state["selected_month"]
     selected_province = sidebar_state["selected_province"]
     channel_filter = sidebar_state["channel_filter"]
     product_filter = sidebar_state["product_filter"]
 
+    # 4) Title
     st.title("🛍️ Dashboard สรุปผลการจำหน่ายสินค้า OTOP (ชุดเติบโต)")
     st.caption(
         f"ข้อมูลประจำเดือน **{selected_month}** • หน่วยเป็นบาท (฿) • แหล่งข้อมูล: "
         "otop_r04, otop_r05, otop_r06 (ดูท้ายหน้า)"
     )
 
+    # 5) KPI
     render_kpis(df1, df2, df3, selected_month)
     st.markdown("")
+
+    # 6) Main charts (plotly_white เสมอ)
     render_main_row_charts(df1, df2, selected_month, plotly_template=get_plotly_template())
 
     st.markdown("---")
+
+    # 7) Tabs
     tab1, tab2 = st.tabs(["🗺️ ภาพรวมรายจังหวัด", "🔎 วิเคราะห์เชิงลึก"])
     with tab1:
-        # ถ้าโหลดแผนที่ไม่ได้ ก็ข้ามอย่างสุภาพ
-        if th_geo is None:
-            st.info("ไม่สามารถแสดงแผนที่ได้ (ระบบยังทำงานส่วนอื่นตามปกติ)")
-        else:
-            render_thailand_map(df1, df1_melted, th_geo, selected_month, theme_mode=st.session_state.theme_mode)
+        render_thailand_map(df1, df1_melted, th_geo, selected_month)  # <<< ไม่ส่ง theme_mode แล้ว
     with tab2:
         render_transactions_and_sources(
             df1, df2, df3, selected_month, selected_province,
@@ -52,6 +57,7 @@ def main():
             plotly_template=get_plotly_template()
         )
 
+    # 8) Data sources
     st.markdown("---")
     st.markdown(
         "แหล่งข้อมูลที่อ้างอิงในแดชบอร์ด:  "
